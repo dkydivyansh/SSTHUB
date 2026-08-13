@@ -51,7 +51,7 @@ export default function Login() {
         />
         
         {/* Back Button (Desktop) */}
-        <Link to="/" className="hidden lg:inline-flex absolute top-10 left-10 items-center gap-2 font-black uppercase tracking-widest text-white hover:text-[#EE5455] transition-colors z-20">
+        <Link to="/" className="hidden lg:inline-flex absolute top-10 left-10 items-center gap-2 font-black uppercase tracking-widest text-white hover:text-[#3B82F6] transition-colors z-20">
           <ArrowLeft size={20} /> Back
         </Link>
         
@@ -91,7 +91,7 @@ export default function Login() {
       {/* Right Side: Login Form */}
       <div className="w-full lg:w-1/2 bg-[#FFF5E1] relative flex items-center justify-center p-8 pt-20 lg:p-12 min-h-[50vh] lg:min-h-screen">
         {/* Back Button (Mobile) */}
-        <Link to="/" className="lg:hidden absolute top-6 left-6 inline-flex items-center gap-2 font-black uppercase tracking-widest text-black hover:text-[#EE5455] transition-colors z-20">
+        <Link to="/" className="lg:hidden absolute top-6 left-6 inline-flex items-center gap-2 font-black uppercase tracking-widest text-black hover:text-[#3B82F6] transition-colors z-20">
           <ArrowLeft size={20} /> Back
         </Link>
 
@@ -112,7 +112,7 @@ export default function Login() {
         >
           <div className="bg-white border-4 border-black p-8 sm:p-12 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
             {/* Decorative Tag */}
-            <div className="absolute -top-5 -right-5 bg-[#EE5455] text-white px-4 py-2 border-4 border-black font-black uppercase tracking-widest text-sm transform rotate-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="absolute -top-5 -right-5 bg-[#3B82F6] text-white px-4 py-2 border-4 border-black font-black uppercase tracking-widest text-sm transform rotate-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               Secure
             </div>
 
@@ -120,7 +120,7 @@ export default function Login() {
               <h1 className="text-4xl font-black text-black uppercase tracking-tighter mb-2">
                 Welcome
               </h1>
-              <p className="text-[#EE5455] font-black uppercase tracking-widest text-xs mb-2">
+              <p className="text-[#3B82F6] font-black uppercase tracking-widest text-xs mb-2">
                 Important: Only @sst.scaler.com emails allowed
               </p>
               <p className="text-black/70 font-bold uppercase tracking-widest text-sm">
@@ -129,7 +129,7 @@ export default function Login() {
             </div>
 
             {errorParam && (
-              <div className="mb-6 bg-black text-white p-4 font-bold border-4 border-[#EE5455] text-center shadow-[4px_4px_0px_0px_rgba(238,84,85,1)] uppercase tracking-wider text-sm">
+              <div className="mb-6 bg-black text-white p-4 font-bold border-4 border-[#3B82F6] text-center shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] uppercase tracking-wider text-sm">
                 {errorParam}
               </div>
             )}

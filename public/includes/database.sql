@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS userdata (
     type ENUM('admin', 'member', 'faculty') DEFAULT 'member',
     status ENUM('active', 'disabled', 'pending') DEFAULT 'pending',
     disabledmsg TEXT,
-    extra JSON,
+    extra JSON, -- Expected structure: { "description": "", "social": { "github": "", "portfolio": "", "instagram": "", "linkedin": "", "gdev": "", "hackerone": "" }, "clubs": { "nlogn": "" }, "research": { "orcid": "" } }
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

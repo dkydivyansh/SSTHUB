@@ -42,7 +42,7 @@ export default function Hero() {
 
   const colors = {
     bg: 'bg-[#FFF5E1]',
-    shape1: 'bg-[#EE5455]',
+    shape1: 'bg-[#3B82F6]',
     shape2: 'bg-blue-500',
     highlight: 'bg-blue-500 text-white',
     btnShadow: 'shadow-[8px_8px_0px_0px_rgba(59,130,246,1)]',
@@ -75,7 +75,7 @@ export default function Hero() {
       {/* Logo */}
       <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-50">
         <div className="font-black text-2xl text-black tracking-tight uppercase whitespace-nowrap bg-white px-3 py-1 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">
-          SST<span className="text-white px-2 ml-1 border-2 border-black rotate-2 inline-block bg-[#EE5455]">Hub</span>
+          SST<span className="text-white px-2 ml-1 border-2 border-black rotate-2 inline-block bg-[#3B82F6]">Hub</span>
         </div>
       </div>
 

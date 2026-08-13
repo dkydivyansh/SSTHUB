@@ -27,6 +27,11 @@ if ($request_uri === '/api/session') {
     exit();
 }
 
+if ($request_uri === '/api/onboarding') {
+    require_once __DIR__ . '/controller/api/onboarding.php';
+    exit();
+}
+
 if ($request_uri === '/auth/callback') {
     require_once __DIR__ . '/controller/auth/callback.php';
     exit();

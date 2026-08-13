@@ -15,9 +15,9 @@ export default function InteractiveCards() {
     bgLeft: 'bg-white',
     bgRight: 'bg-[#FFF5E1]',
     itemHover1: 'hover:bg-blue-400 group-hover:text-white',
-    itemHover2: 'hover:bg-[#EE5455] group-hover:text-white',
+    itemHover2: 'hover:bg-[#3B82F6] group-hover:text-white',
     itemHover3: 'hover:bg-blue-400 group-hover:text-white',
-    itemHover4: 'hover:bg-[#EE5455] group-hover:text-white',
+    itemHover4: 'hover:bg-[#3B82F6] group-hover:text-white',
     iconShadow: 'shadow-[4px_4px_0px_0px_rgba(59,130,246,1)]',
     highlightText: 'bg-blue-500 text-white',
   };

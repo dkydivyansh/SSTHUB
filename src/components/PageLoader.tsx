@@ -74,7 +74,7 @@ export default function PageLoader() {
               className="flex flex-col items-center justify-center"
             >
               <h2 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter text-black flex items-center">
-                SST<span className="text-white px-2 py-1 ml-2 border-4 border-black rotate-2 inline-block bg-[#EE5455] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">Hub</span>
+                SST<span className="text-white px-2 py-1 ml-2 border-4 border-black rotate-2 inline-block bg-[#3B82F6] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">Hub</span>
               </h2>
               
               {showCloseBtn && (

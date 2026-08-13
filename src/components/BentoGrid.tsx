@@ -13,7 +13,7 @@ export default function BentoGrid() {
   const rotate1 = useTransform(scrollYProgress, [0, 1], [0, 90]);
 
   const colors = {
-    bg: 'bg-[#EE5455]',
+    bg: 'bg-[#3B82F6]',
     accent: 'bg-blue-500',
     accentShadow: 'shadow-[4px_4px_0px_0px_rgba(59,130,246,1)]',
     cardBg: 'bg-[#FFF5E1]',
