@@ -7,6 +7,15 @@ import { useEffect, useState } from 'react';
 export default function Login() {
   const [animationData, setAnimationData] = useState<any>(null);
 
+  const handleGoogleLogin = () => {
+    const clientId = '395027667845-rnn22t43fi63jqoj6muqalemp1gt0ugs.apps.googleusercontent.com';
+    const redirectUri = `${window.location.origin}/auth/callback`;
+    const scope = encodeURIComponent('email profile openid');
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=online`;
+    
+    window.location.href = authUrl;
+  };
+
   useEffect(() => {
     fetch('/death-dance.json')
       .then((res) => res.json())
@@ -103,7 +112,10 @@ export default function Login() {
             </div>
 
             <div className="flex flex-col gap-5">
-              <button className="group relative w-full flex items-center justify-center gap-3 bg-white text-black font-black uppercase tracking-widest border-4 border-black py-4 px-6 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all">
+              <button 
+                onClick={handleGoogleLogin}
+                className="group relative w-full flex items-center justify-center gap-3 bg-white text-black font-black uppercase tracking-widest border-4 border-black py-4 px-6 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all"
+              >
                 {/* Google Logo SVG (simple geometric rep) */}
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.67 15.63 16.89 16.81 15.71 17.6V20.34H19.27C21.36 18.42 22.56 15.6 22.56 12.25Z" fill="#4285F4"/>

@@ -5,7 +5,6 @@ import InteractiveCards from '../components/InteractiveCards';
 import Footer from '../components/Footer';
 import Lenis from 'lenis';
 import { useEffect } from 'react';
-
 export default function Home() {
   useEffect(() => {
     const lenis = new Lenis({
