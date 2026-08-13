@@ -7,6 +7,10 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
+import Logout from './pages/Logout';
+import DashboardLayout from './components/dashboard/DashboardLayout';
 import PageLoader from './components/PageLoader';
 
 function AppRoutes() {
@@ -29,6 +33,13 @@ function AppRoutes() {
       <Routes location={displayLocation}>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        
+        <Route path="/dash" element={<DashboardLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
+
+        <Route path="/logout" element={<Logout />} />
       </Routes>
     </>
   );

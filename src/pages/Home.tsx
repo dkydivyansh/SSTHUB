@@ -5,7 +5,22 @@ import InteractiveCards from '../components/InteractiveCards';
 import Footer from '../components/Footer';
 import Lenis from 'lenis';
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 export default function Home() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          navigate('/dash');
+        }
+      })
+      .catch(() => {});
+  }, [navigate]);
+
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,

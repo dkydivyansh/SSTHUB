@@ -58,15 +58,68 @@ class SessionManager {
     }
 
     /**
+     * Validates session and returns granular status.
+     * @return string 'valid', 'refresh_required', or 'invalid_session'
+     */
+    public function validateSessionStatus($user_id, $session_id) {
+        $stmt = $this->db->prepare("
+            SELECT s.id, s.expires_at, s.created_at, ud.status
+            FROM sessions s
+            JOIN userdata ud ON s.user_id = ud.user_id
+            WHERE s.user_id = ? AND s.session_id = ? LIMIT 1
+        ");
+        $stmt->execute([$user_id, $session_id]);
+        $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$session) {
+            return 'invalid_session';
+        }
+
+        if ($session['status'] === 'disabled') {
+            return 'disabled';
+        }
+
+        $now = time();
+        $expires_at = strtotime($session['expires_at']);
+        $created_at = strtotime($session['created_at']);
+        
+        $refresh_expires_at = $created_at + (7 * 24 * 60 * 60);
+
+        // If refresh token is expired
+        if ($now > $refresh_expires_at) {
+            $this->revokeSession($user_id, $session_id);
+            return 'invalid_session';
+        }
+
+        // If session is expired, but refresh is valid
+        if ($now > $expires_at) {
+            return 'refresh_required';
+        }
+
+        // If session expires in < 1 hour
+        if ($expires_at - $now < 3600) {
+            return 'refresh_required';
+        }
+
+        // If refresh token expires in < 24 hours
+        if ($refresh_expires_at - $now < (24 * 3600)) {
+            return 'refresh_required';
+        }
+
+        return 'valid';
+    }
+
+    /**
      * Refreshes a session by generating a new session_id and extending expiration.
      * Validates that the refresh token isn't older than 7 days.
      * @param int $user_id
+     * @param string $session_id
      * @param string $refresh_token
      * @return array|false Returns new session info or false if invalid/expired
      */
-    public function refreshSession($user_id, $refresh_token) {
-        $stmt = $this->db->prepare("SELECT id, user_id, created_at FROM sessions WHERE user_id = ? AND refresh_token = ? LIMIT 1");
-        $stmt->execute([$user_id, $refresh_token]);
+    public function refreshSession($user_id, $session_id, $refresh_token) {
+        $stmt = $this->db->prepare("SELECT id, created_at FROM sessions WHERE user_id = ? AND session_id = ? AND refresh_token = ? LIMIT 1");
+        $stmt->execute([$user_id, $session_id, $refresh_token]);
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$session) {
@@ -82,16 +135,18 @@ class SessionManager {
             return false;
         }
 
-        // Token is valid, generate new session id
+        // Token is valid, generate new session id and new refresh token
         $new_session_id = bin2hex(random_bytes(32));
+        $new_refresh_token = bin2hex(random_bytes(32));
         $new_expires_at = date('Y-m-d H:i:s', time() + (24 * 60 * 60));
+        $new_created_at = date('Y-m-d H:i:s', time()); // Reset 7 day window
 
-        $updateStmt = $this->db->prepare("UPDATE sessions SET session_id = ?, expires_at = ? WHERE id = ?");
-        $updateStmt->execute([$new_session_id, $new_expires_at, $session['id']]);
+        $updateStmt = $this->db->prepare("UPDATE sessions SET session_id = ?, refresh_token = ?, expires_at = ?, created_at = ? WHERE id = ?");
+        $updateStmt->execute([$new_session_id, $new_refresh_token, $new_expires_at, $new_created_at, $session['id']]);
 
         return [
             'session_id' => $new_session_id,
-            'refresh_token' => $refresh_token, // keep the same refresh token
+            'refresh_token' => $new_refresh_token,
             'expires_at' => $new_expires_at
         ];
     }
@@ -104,7 +159,26 @@ class SessionManager {
      */
     public function revokeSession($user_id, $session_id) {
         $stmt = $this->db->prepare("DELETE FROM sessions WHERE user_id = ? AND session_id = ?");
-        return $stmt->execute([$user_id, $session_id]);
+        $stmt->execute([$user_id, $session_id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Revokes a specific device session after validating the current session.
+     * @param int $user_id
+     * @param string $current_session_id
+     * @param string $target_session_id
+     * @return bool
+     */
+    public function revokeDevice($user_id, $current_session_id, $target_session_id) {
+        $status = $this->validateSessionStatus($user_id, $current_session_id);
+        if ($status !== 'valid' && $status !== 'refresh_required') {
+            return false;
+        }
+
+        $stmt = $this->db->prepare("DELETE FROM sessions WHERE user_id = ? AND session_id = ?");
+        $stmt->execute([$user_id, $target_session_id]);
+        return $stmt->rowCount() > 0;
     }
 
     /**

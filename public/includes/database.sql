@@ -1,7 +1,6 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     sso BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -11,6 +10,8 @@ CREATE TABLE IF NOT EXISTS userdata (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     name VARCHAR(255) NOT NULL,
+    rollno VARCHAR(50),
+    avatar VARCHAR(255),
     batch INT,
     `group` CHAR(1),
     type ENUM('admin', 'member', 'faculty') DEFAULT 'member',

@@ -1,11 +1,25 @@
 import { motion } from 'motion/react';
 import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Lottie from 'lottie-react';
 import { useEffect, useState } from 'react';
 
 export default function Login() {
   const [animationData, setAnimationData] = useState<any>(null);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const errorParam = searchParams.get('error');
+
+  useEffect(() => {
+    fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          navigate('/dash');
+        }
+      })
+      .catch(() => {});
+  }, [navigate]);
 
   const handleGoogleLogin = () => {
     const clientId = '395027667845-rnn22t43fi63jqoj6muqalemp1gt0ugs.apps.googleusercontent.com';
@@ -106,10 +120,19 @@ export default function Login() {
               <h1 className="text-4xl font-black text-black uppercase tracking-tighter mb-2">
                 Welcome
               </h1>
+              <p className="text-[#EE5455] font-black uppercase tracking-widest text-xs mb-2">
+                Important: Only @sst.scaler.com emails allowed
+              </p>
               <p className="text-black/70 font-bold uppercase tracking-widest text-sm">
                 Sign in to SST Hub
               </p>
             </div>
+
+            {errorParam && (
+              <div className="mb-6 bg-black text-white p-4 font-bold border-4 border-[#EE5455] text-center shadow-[4px_4px_0px_0px_rgba(238,84,85,1)] uppercase tracking-wider text-sm">
+                {errorParam}
+              </div>
+            )}
 
             <div className="flex flex-col gap-5">
               <button 
