@@ -1,10 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, User, LogOut } from 'lucide-react';
+import { Home, User, Users } from 'lucide-react';
 
 export default function MobileBottomNav() {
   const location = useLocation();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === '/dash') return location.pathname === '/dash';
+    return location.pathname.startsWith(path);
+  };
 
   const navItemClass = (path: string) => `
     flex flex-col items-center justify-center p-2 flex-1 transition-colors
@@ -22,11 +25,12 @@ export default function MobileBottomNav() {
         <User size={20} className={isActive('/dash/profile') ? 'fill-[#3B82F6]' : ''} />
         <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Profile</span>
       </Link>
-
-      <Link to="/logout" className="flex flex-col items-center justify-center p-2 flex-1 text-black hover:text-[#3B82F6] transition-colors">
-        <LogOut size={20} />
-        <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Logout</span>
+      
+      <Link to="/dash/social" className={navItemClass('/dash/social')}>
+        <Users size={20} className={isActive('/dash/social') ? 'fill-[#3B82F6]' : ''} />
+        <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Social</span>
       </Link>
+
     </nav>
   );
 }

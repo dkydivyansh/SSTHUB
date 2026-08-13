@@ -52,11 +52,42 @@ $github = htmlspecialchars(trim($input['github'] ?? ''));
 $portfolio = htmlspecialchars(trim($input['portfolio'] ?? ''));
 $instagram = htmlspecialchars(trim($input['instagram'] ?? ''));
 $linkedin = htmlspecialchars(trim($input['linkedin'] ?? ''));
-$gdev = htmlspecialchars(trim($input['gdev'] ?? ''));
 $hackerone = htmlspecialchars(trim($input['hackerone'] ?? ''));
 $orcid = htmlspecialchars(trim($input['orcid'] ?? ''));
 $nlogn = htmlspecialchars(trim($input['nlogn_username'] ?? ''));
 $description = htmlspecialchars(trim($input['description'] ?? ''));
+
+$raw_interests = $input['interests'] ?? [];
+$interests = [];
+if (is_array($raw_interests)) {
+    foreach ($raw_interests as $interest) {
+        if (is_string($interest)) {
+            $sanitized = strip_tags(trim($interest));
+            if (!empty($sanitized) && strlen($sanitized) <= 30) {
+                $interests[] = $sanitized;
+            }
+        }
+    }
+}
+$interests = array_slice($interests, 0, 15);
+
+$raw_papers = $input['papers'] ?? [];
+$papers = [];
+if (is_array($raw_papers)) {
+    foreach ($raw_papers as $paper) {
+        if (is_array($paper) && isset($paper['title']) && is_string($paper['title'])) {
+            $title = strip_tags(trim($paper['title']));
+            $link = isset($paper['link']) && is_string($paper['link']) ? strip_tags(trim($paper['link'])) : '';
+            if (!empty($title)) {
+                $papers[] = [
+                    'title' => $title,
+                    'link' => $link
+                ];
+            }
+        }
+    }
+}
+$papers = array_slice($papers, 0, 5);
 
 // Validate description length
 if (!empty($description) && str_word_count($description) > 60) {
@@ -74,7 +105,6 @@ $fieldsToValidate = [
     'GitHub' => $github,
     'Instagram' => $instagram,
     'LinkedIn' => $linkedin,
-    'Google Dev' => $gdev,
     'HackerOne' => $hackerone,
     'ORCID' => $orcid,
     'CP Club' => $nlogn
@@ -95,15 +125,16 @@ $extra = [
         "portfolio" => $portfolio,
         "instagram" => $instagram,
         "linkedin" => $linkedin,
-        "gdev" => $gdev,
         "hackerone" => $hackerone
     ],
     "clubs" => [
         "nlogn" => $nlogn
     ],
     "research" => [
-        "orcid" => $orcid
-    ]
+        "orcid" => $orcid,
+        "papers" => $papers
+    ],
+    "interests" => $interests
 ];
 
 $extraJson = json_encode($extra);

@@ -37,17 +37,24 @@ curl_setopt($ch, CURLOPT_URL, $token_url);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 $token_response_raw = curl_exec($ch);
+
+if ($token_response_raw === false) {
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'cURL Error: ' . curl_error($ch)]);
+    exit();
+}
 curl_close($ch);
 
 $token_response = json_decode($token_response_raw, true);
 
-if (isset($token_response['error'])) {
+if (!is_array($token_response) || isset($token_response['error'])) {
     http_response_code(400);
     echo json_encode([
         'status' => 'error',
         'message' => 'Failed to obtain access token',
-        'details' => $token_response
+        'details' => $token_response ?? $token_response_raw
     ]);
     exit();
 }
@@ -62,7 +69,14 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Authorization: Bearer ' . $access_token
 ]);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 $user_info_raw = curl_exec($ch);
+
+if ($user_info_raw === false) {
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'cURL Error: ' . curl_error($ch)]);
+    exit();
+}
 curl_close($ch);
 
 $user_info = json_decode($user_info_raw, true);
@@ -93,8 +107,13 @@ $local_part = explode('@', $email)[0];
 $parts = explode('.', $local_part);
 $rollno = end($parts);
 $batch = null;
+
+// Edge case logic: if it doesn't look like a student roll number (starts with 2 digits), set to null
 if (preg_match('/^(\d{2})/', $rollno, $matches)) {
     $batch = intval("20" . (intval($matches[1]) + 4));
+} else {
+    $rollno = null;
+    $batch = null;
 }
 
 // Check if user exists

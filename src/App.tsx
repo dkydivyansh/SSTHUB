@@ -9,7 +9,11 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import ProfileEdit from './pages/ProfileEdit';
 import Logout from './pages/Logout';
+import PublicProfile from './pages/PublicProfile';
+import Social from './pages/social/Social';
+import SocialDiscover from './pages/social/SocialDiscover';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import PageLoader from './components/PageLoader';
 
@@ -33,10 +37,14 @@ function AppRoutes() {
       <Routes location={displayLocation}>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/u/:rollno" element={<PublicProfile />} />
         
         <Route path="/dash" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="profile/edit" element={<ProfileEdit />} />
+          <Route path="social" element={<Social />} />
+          <Route path="social/discover" element={<SocialDiscover />} />
         </Route>
 
         <Route path="/logout" element={<Logout />} />

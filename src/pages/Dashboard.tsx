@@ -16,16 +16,56 @@ export default function Dashboard() {
     portfolio: '',
     linkedin: '',
     instagram: '',
-    gdev: '',
     hackerone: '',
     orcid: '',
-    nlogn_username: ''
+    nlogn_username: '',
+    interests: [] as string[],
+    papers: [] as {title: string, link: string}[]
   });
+  const [interestInput, setInterestInput] = useState('');
+  const [paperTitle, setPaperTitle] = useState('');
+  const [paperLink, setPaperLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleInterestKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = interestInput.trim();
+      if (val && formData.interests.length < 15 && !formData.interests.includes(val)) {
+        setFormData(prev => ({ ...prev, interests: [...prev.interests, val] }));
+      }
+      setInterestInput('');
+    }
+  };
+
+  const removeInterest = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      interests: prev.interests.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addPaper = () => {
+    if (paperTitle.trim() && formData.papers.length < 5) {
+      setFormData(prev => ({
+        ...prev,
+        papers: [...prev.papers, { title: paperTitle.trim(), link: paperLink.trim() }]
+      }));
+      setPaperTitle('');
+      setPaperLink('');
+    }
+  };
+
+  const removePaper = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      papers: prev.papers.filter((_, i) => i !== index)
+    }));
   };
 
   const nextStep = () => {
@@ -170,6 +210,29 @@ export default function Dashboard() {
                           className="bg-white text-black border-4 border-black p-4 font-bold outline-none focus:border-[#3B82F6] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] resize-none"
                         />
                       </div>
+
+                      <div className="flex flex-col gap-2 mt-2">
+                        <label className="font-black uppercase tracking-widest text-sm text-black/80">Interests & Keywords (Press Enter)</label>
+                        <input
+                          type="text"
+                          placeholder="backend development, music..."
+                          value={interestInput}
+                          onChange={(e) => setInterestInput(e.target.value)}
+                          onKeyDown={handleInterestKeyDown}
+                          className="bg-white text-black border-4 border-black p-4 font-bold outline-none focus:border-[#3B82F6] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                        />
+                      </div>
+                      
+                      {formData.interests.length > 0 && (
+                        <div className="flex flex-wrap gap-3 mt-1">
+                          {formData.interests.map((interest, idx) => (
+                            <div key={idx} className="group flex items-center gap-2 bg-black text-white px-3 py-1 border-2 border-black font-black tracking-widest text-xs shadow-[2px_2px_0px_0px_rgba(59,130,246,1)] hover:-translate-y-1 transition-transform cursor-pointer" onClick={() => removeInterest(idx)}>
+                              <span className="uppercase">{interest}</span>
+                              <X size={14} className="text-white/50 group-hover:text-red-500 transition-colors" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </motion.div>
                   )}
 
@@ -269,20 +332,6 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex flex-col gap-2">
-                          <label className="font-black uppercase tracking-widest text-sm text-black/80">Google Dev (g.dev)</label>
-                          <input
-                            type="text"
-                            name="gdev"
-                            placeholder="username"
-                            pattern="^[^/:\s]+$"
-                            title="Username only (no URLs)"
-                            value={formData.gdev}
-                            onChange={handleChange}
-                            className="bg-white text-black border-4 border-black p-4 font-bold outline-none focus:border-[#3B82F6] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-2">
                           <label className="font-black uppercase tracking-widest text-sm text-black/80">ORCID</label>
                           <input
                             type="text"
@@ -295,6 +344,65 @@ export default function Dashboard() {
                             className="bg-white text-black border-4 border-black p-4 font-bold outline-none focus:border-[#3B82F6] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                           />
                         </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 mt-2">
+                        <div className="flex justify-between items-end mb-2">
+                          <label className="font-black uppercase tracking-widest text-sm text-black/80">Research Papers</label>
+                          <span className="text-xs font-bold text-black/50">{formData.papers.length}/5 added</span>
+                        </div>
+                        {formData.papers.length < 5 && (
+                          <div className="flex flex-col sm:flex-row gap-2 items-end">
+                            <div className="flex flex-col gap-2 w-full sm:w-1/2">
+                              <label className="font-black uppercase tracking-widest text-xs text-black/80">Paper Title</label>
+                              <input
+                                type="text"
+                                placeholder="Paper Title"
+                                value={paperTitle}
+                                onChange={(e) => setPaperTitle(e.target.value)}
+                                className="bg-white text-black border-4 border-black p-4 font-bold outline-none focus:border-[#3B82F6] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-2 w-full sm:w-1/2">
+                              <label className="font-black uppercase tracking-widest text-xs text-black/80">Link</label>
+                              <input
+                                type="url"
+                                placeholder="https://..."
+                                value={paperLink}
+                                onChange={(e) => setPaperLink(e.target.value)}
+                                className="bg-white text-black border-4 border-black p-4 font-bold outline-none focus:border-[#3B82F6] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={addPaper}
+                              disabled={!paperTitle.trim()}
+                              className="bg-black text-white font-black uppercase tracking-widest p-4 border-4 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        )}
+
+                        {formData.papers.length > 0 && (
+                          <div className="flex flex-col gap-3 mt-4">
+                            {formData.papers.map((paper, idx) => (
+                              <div key={idx} className="flex justify-between items-center bg-white border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-transform">
+                                <div className="flex flex-col overflow-hidden mr-4">
+                                  <p className="font-bold text-sm truncate uppercase tracking-tight">{paper.title}</p>
+                                  {paper.link && <p className="text-xs text-[#3B82F6] truncate mt-1">{paper.link}</p>}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removePaper(idx)}
+                                  className="bg-black text-white p-2 border-2 border-black hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(239,68,68,1)] hover:bg-red-500 transition-all shrink-0"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}

@@ -32,8 +32,18 @@ if ($request_uri === '/api/onboarding') {
     exit();
 }
 
+if ($request_uri === '/api/profile_update') {
+    require_once __DIR__ . '/controller/api/profile_update.php';
+    exit();
+}
+
 if ($request_uri === '/auth/callback') {
     require_once __DIR__ . '/controller/auth/callback.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/public_profile') === 0) {
+    require_once __DIR__ . '/controller/api/public_profile.php';
     exit();
 }
 
