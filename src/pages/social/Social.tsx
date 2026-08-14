@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft } from 'lucide-react';
+import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft, Trash, Ban } from 'lucide-react';
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -31,6 +31,7 @@ export default function Social() {
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
 
   const startchatRollno = searchParams.get('startchat');
   const isFetching = useRef(false);
@@ -237,6 +238,13 @@ export default function Social() {
     if (!jsonStr) return 'No messages yet';
     try {
       const parsed = JSON.parse(jsonStr);
+      if (parsed.status === 'deleted') {
+        return (
+          <span className="italic text-gray-400 inline-flex items-center gap-1">
+            <Ban size={12} className="shrink-0" /> This message was deleted
+          </span>
+        );
+      }
       let text = parsed.text || 'Message';
       if (text.startsWith('B64:')) {
         try {
@@ -248,6 +256,25 @@ export default function Social() {
       return text;
     } catch {
       return jsonStr;
+    }
+  };
+
+  const deleteMessage = async (messageId: number) => {
+    if (!activeChat) return;
+    try {
+      const res = await fetch(`/api/conversations/${activeChat.conversation_id}/messages/${messageId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setMessages(prev => prev.map(m => 
+          m.message_id === messageId ? { ...m, content: JSON.stringify({ status: 'deleted' }) } : m
+        ));
+      } else {
+        alert(data.message || 'Failed to delete message');
+      }
+    } catch (e) {
+      alert('Network error while deleting');
     }
   };
 
@@ -549,11 +576,27 @@ export default function Social() {
                   return (
                     <div key={msg.message_id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[80%] ${isMine ? 'flex-row-reverse' : ''}`}>
-                        <div className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-white text-black'}`}>
+                        <div 
+                          className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-white text-black'} relative group cursor-pointer md:cursor-default`}
+                          onClick={() => {
+                            if (window.innerWidth < 768 && isMine && !msg.content?.includes('"status":"deleted"')) {
+                              setSelectedMessageId(prev => prev === msg.message_id ? null : msg.message_id);
+                            }
+                          }}
+                        >
                           <div className="font-bold text-sm break-words whitespace-pre-wrap">{parseMessage(msg.content)}</div>
                           <div className={`text-[10px] font-bold mt-1 ${isMine ? 'text-white/60 text-right' : 'text-black/40'}`}>
                             {formatTime(msg.created_at)}
                           </div>
+                          {isMine && !msg.content?.includes('"status":"deleted"') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteMessage(msg.message_id); }}
+                              className={`absolute top-[-10px] right-[-10px] bg-red-500 text-white p-1 border-2 border-black rounded-full transition-all hover:scale-110 ${selectedMessageId === msg.message_id ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}
+                              title="Delete Message"
+                            >
+                              <Trash size={12} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

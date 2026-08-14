@@ -233,6 +233,47 @@ if (preg_match('#^/api/conversations/(\d+)/seen$#', $request_uri, $matches) && $
     exit();
 }
 
+// DELETE /api/conversations/{id}/messages/{message_id}
+if (preg_match('#^/api/conversations/(\d+)/messages/(\d+)$#', $request_uri, $matches) && $request_method === 'DELETE') {
+    $conversation_id = (int)$matches[1];
+    $message_id = (int)$matches[2];
+
+    if (!isParticipant($conn, $conversation_id, $user_id)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Forbidden']);
+        exit();
+    }
+
+    try {
+        // First check if the message belongs to the user
+        $stmt = $conn->prepare("SELECT sender_id FROM messages WHERE id = ? AND conversation_id = ?");
+        $stmt->execute([$message_id, $conversation_id]);
+        $sender_id = $stmt->fetchColumn();
+
+        if (!$sender_id) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Message not found']);
+            exit();
+        }
+
+        if ($sender_id != $user_id) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'You can only delete your own messages']);
+            exit();
+        }
+
+        $deletedContent = json_encode(['status' => 'deleted']);
+        $stmt = $conn->prepare("UPDATE messages SET content = ? WHERE id = ?");
+        $stmt->execute([$deletedContent, $message_id]);
+
+        echo json_encode(['status' => 'success']);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Database error', 'debug' => $e->getMessage()]);
+    }
+    exit();
+}
+
 // Fallback
 http_response_code(404);
 echo json_encode(['status' => 'error', 'message' => 'Route not found or invalid method']);
