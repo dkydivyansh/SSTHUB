@@ -204,6 +204,35 @@ if (preg_match('#^/api/conversations/(\d+)/archive$#', $request_uri, $matches) &
     exit();
 }
 
+// Routes with {id}/seen
+if (preg_match('#^/api/conversations/(\d+)/seen$#', $request_uri, $matches) && $request_method === 'POST') {
+    $conversation_id = (int)$matches[1];
+
+    if (!isParticipant($conn, $conversation_id, $user_id)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Forbidden']);
+        exit();
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $message_id = isset($input['message_id']) ? (int)$input['message_id'] : null;
+
+    if ($message_id) {
+        try {
+            $stmt = $conn->prepare("UPDATE participants SET last_seen_message_id = ? WHERE conversation_id = ? AND user_id = ? AND (last_seen_message_id IS NULL OR last_seen_message_id < ?)");
+            $stmt->execute([$message_id, $conversation_id, $user_id, $message_id]);
+            echo json_encode(['status' => 'success']);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Database error']);
+        }
+    } else {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Missing message_id']);
+    }
+    exit();
+}
+
 // Fallback
 http_response_code(404);
 echo json_encode(['status' => 'error', 'message' => 'Route not found or invalid method']);

@@ -54,6 +54,7 @@ try {
             p.is_archived,
             (SELECT content FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_message,
             (SELECT created_at FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_message_time,
+            (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_id != p.user_id AND m.id > COALESCE(p.last_seen_message_id, 0)) as unread_count,
             (
                 SELECT ud.name 
                 FROM participants p2 
@@ -87,6 +88,6 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => 'Database error']);
+    echo json_encode(['status' => 'error', 'message' => 'Database error', 'debug' => $e->getMessage()]);
 }
 ?>
