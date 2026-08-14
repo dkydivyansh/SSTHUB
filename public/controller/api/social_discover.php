@@ -63,9 +63,14 @@ if ($group) {
 }
 
 if ($type) {
-    $mappedType = $type === 'student' ? 'member' : $type;
-    $query .= " AND ud.type = ?";
-    $params[] = $mappedType;
+    if ($type === 'student') {
+        $query .= " AND ud.type = 'member'";
+    } elseif ($type === 'faculty') {
+        $query .= " AND ud.type IN ('faculty', 'admin')";
+    } else {
+        $query .= " AND ud.type = ?";
+        $params[] = $type;
+    }
 }
 
 $query .= " LIMIT " . intval($limit) . " OFFSET " . intval($offset);

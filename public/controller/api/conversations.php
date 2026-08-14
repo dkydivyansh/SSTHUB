@@ -1,0 +1,210 @@
+<?php
+header('Content-Type: application/json');
+
+require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/SessionManager.php';
+
+$user_id = $_COOKIE['user_id'] ?? null;
+$session_id = $_COOKIE['session_id'] ?? null;
+
+if (!$user_id || !$session_id) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+    exit();
+}
+
+$db = new Database();
+$conn = $db->getConnection();
+$sessionManager = new SessionManager($conn);
+
+$status = $sessionManager->validateSessionStatus($user_id, $session_id);
+if ($status === 'invalid_session') {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized: Invalid session']);
+    exit();
+}
+
+$request_method = $_SERVER['REQUEST_METHOD'];
+$request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+// Helper function to check if user is in a conversation
+function isParticipant($conn, $conversation_id, $user_id) {
+    $stmt = $conn->prepare("SELECT 1 FROM participants WHERE conversation_id = ? AND user_id = ?");
+    $stmt->execute([$conversation_id, $user_id]);
+    return $stmt->fetchColumn() !== false;
+}
+
+// POST /api/conversations : Create a new conversation
+if ($request_uri === '/api/conversations' && $request_method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $other_user_rollno = $input['other_user_rollno'] ?? null;
+
+    if (!$other_user_rollno) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Missing other_user_rollno']);
+        exit();
+    }
+
+    // Lookup user_id for the given rollno
+    $stmt = $conn->prepare("SELECT user_id FROM userdata WHERE rollno = ?");
+    $stmt->execute([$other_user_rollno]);
+    $other_user_id = $stmt->fetchColumn();
+
+    if (!$other_user_id || $other_user_id == $user_id) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid other_user_rollno']);
+        exit();
+    }
+
+    try {
+        // 1. Check if a direct message conversation already exists between these two users
+        $stmt = $conn->prepare("
+            SELECT p1.conversation_id 
+            FROM participants p1
+            JOIN participants p2 ON p1.conversation_id = p2.conversation_id
+            JOIN conversations c ON p1.conversation_id = c.id
+            WHERE p1.user_id = ? AND p2.user_id = ? AND c.type = 'direct_message'
+            LIMIT 1
+        ");
+        $stmt->execute([$user_id, $other_user_id]);
+        $existing = $stmt->fetchColumn();
+
+        if ($existing) {
+            echo json_encode(['status' => 'success', 'data' => ['state' => 'exist', 'conversation_id' => $existing]]);
+            exit();
+        }
+
+        // 2. Check if there is an existing chat request
+        $stmt = $conn->prepare("
+            SELECT from_user_id, status 
+            FROM chat_requests 
+            WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)
+            LIMIT 1
+        ");
+        $stmt->execute([$user_id, $other_user_id, $other_user_id, $user_id]);
+        $request = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($request) {
+            // Note: If status is 'ignored', we still want to block sending another request.
+            if ($request['from_user_id'] == $user_id) {
+                echo json_encode(['status' => 'success', 'data' => ['state' => 'already_requested']]);
+            } else {
+                echo json_encode(['status' => 'success', 'data' => ['state' => 'received_request']]);
+            }
+            exit();
+        }
+
+        // 3. Nothing exists, request required
+        echo json_encode(['status' => 'success', 'data' => ['state' => 'request_required']]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Database error']);
+    }
+    exit();
+}
+
+// Routes with {id}
+if (preg_match('#^/api/conversations/(\d+)/messages$#', $request_uri, $matches)) {
+    $conversation_id = (int)$matches[1];
+
+    if (!isParticipant($conn, $conversation_id, $user_id)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Forbidden']);
+        exit();
+    }
+
+    if ($request_method === 'GET') {
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+        
+        // Max limit 100
+        $limit = min($limit, 100);
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT 
+                    m.id AS message_id,
+                    m.content,
+                    m.created_at,
+                    u.id AS sender_id,
+                    ud.name AS sender_name,
+                    ud.avatar AS sender_avatar
+                FROM messages m
+                LEFT JOIN users u ON m.sender_id = u.id
+                LEFT JOIN userdata ud ON u.id = ud.user_id
+                WHERE m.conversation_id = ? 
+                ORDER BY m.created_at DESC
+                LIMIT ? OFFSET ?
+            ");
+            
+            // Using bindValue for LIMIT and OFFSET
+            $stmt->bindValue(1, $conversation_id, PDO::PARAM_INT);
+            $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+            $stmt->bindValue(3, $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode(['status' => 'success', 'data' => $messages]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Database error']);
+        }
+        exit();
+    }
+
+    if ($request_method === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $content = trim($input['content'] ?? '');
+
+        if (empty($content)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Message content is required']);
+            exit();
+        }
+
+        $jsonContent = json_encode(['text' => $content]);
+
+        try {
+            $stmt = $conn->prepare("INSERT INTO messages (conversation_id, sender_id, content) VALUES (?, ?, ?)");
+            $stmt->execute([$conversation_id, $user_id, $jsonContent]);
+            
+            $message_id = $conn->lastInsertId();
+            echo json_encode(['status' => 'success', 'data' => ['message_id' => $message_id]]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Database error']);
+        }
+        exit();
+    }
+}
+
+// Routes with {id}/archive
+if (preg_match('#^/api/conversations/(\d+)/archive$#', $request_uri, $matches) && $request_method === 'POST') {
+    $conversation_id = (int)$matches[1];
+
+    if (!isParticipant($conn, $conversation_id, $user_id)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Forbidden']);
+        exit();
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $archive_state = isset($input['archive']) && $input['archive'] ? 1 : 0;
+
+    try {
+        $stmt = $conn->prepare("UPDATE participants SET is_archived = ? WHERE conversation_id = ? AND user_id = ?");
+        $stmt->execute([$archive_state, $conversation_id, $user_id]);
+        
+        echo json_encode(['status' => 'success', 'message' => $archive_state ? 'Archived' : 'Unarchived']);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Database error']);
+    }
+    exit();
+}
+
+// Fallback
+http_response_code(404);
+echo json_encode(['status' => 'error', 'message' => 'Route not found or invalid method']);
+?>

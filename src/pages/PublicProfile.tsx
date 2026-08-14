@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { User, Mail, Hash, Layers, Github, Globe, Instagram, Linkedin, Terminal, Code, Library, MessageSquare, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 import PageLoader from '../components/PageLoader';
 
 export default function PublicProfile() {
   const { rollno } = useParams<{ rollno: string }>();
+  const location = useLocation();
+  const fromDiscover = location.state?.fromDiscover;
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -13,6 +15,9 @@ export default function PublicProfile() {
   const [githubData, setGithubData] = useState<any>(null);
   const [githubLoading, setGithubLoading] = useState(false);
   const [githubError, setGithubError] = useState('');
+
+  const [chatState, setChatState] = useState<'loading' | 'request_required' | 'already_requested' | 'received_request' | 'exist' | 'error'>('loading');
+  const [chatConversationId, setChatConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -31,6 +36,28 @@ export default function PublicProfile() {
         setLoading(false);
       });
   }, [rollno]);
+
+  useEffect(() => {
+    if (!userData || userData.is_private || !rollno) return;
+    
+    fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ other_user_rollno: rollno })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        setChatState(data.data.state);
+        if (data.data.conversation_id) setChatConversationId(data.data.conversation_id);
+      } else {
+        setChatState('error');
+      }
+    })
+    .catch(() => setChatState('error'));
+  }, [userData, rollno]);
+
+  // Request sending is now handled in Social.tsx
 
   useEffect(() => {
     if (!userData || userData.is_private) return;
@@ -142,8 +169,8 @@ export default function PublicProfile() {
           </Link>
 
           {isLoggedInViewer ? (
-            <Link to="/dash" className="bg-black text-white px-6 py-2 border-4 border-black font-black uppercase tracking-widest text-sm hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all">
-              Bask To Dashboard
+            <Link to={fromDiscover ? "/dash/social/discover" : "/dash"} className="bg-black text-white px-6 py-2 border-4 border-black font-black uppercase tracking-widest text-sm hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all">
+              {fromDiscover ? "Back To Discover" : "Back To Dashboard"}
             </Link>
           ) : (
             <Link to="/login" className="bg-[#3B82F6] text-white px-6 py-2 border-4 border-black font-black uppercase tracking-widest text-sm hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
@@ -229,14 +256,32 @@ export default function PublicProfile() {
 
             {/* Action Buttons */}
             <div className="grid grid-cols-3 gap-4">
-              <button
-                disabled
-                className="bg-white border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-2 opacity-50 cursor-not-allowed"
-                title="Messaging disabled"
-              >
-                <MessageSquare size={24} className="text-black" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Message</span>
-              </button>
+              {isLoggedInViewer && !isPrivate && chatState !== 'error' ? (
+                <Link
+                  to={chatState === 'exist' ? `/dash/social?startchat=${rollno}` : chatState === 'already_requested' ? '#' : `/dash/social?startchat=${rollno}`}
+                  className={`bg-white border-4 border-black p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                    chatState === 'already_requested' ? 'opacity-50 cursor-not-allowed shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' :
+                    'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(59,130,246,1)]'
+                  }`}
+                  title={chatState === 'already_requested' ? 'Request Pending' : 'Message'}
+                >
+                  <MessageSquare size={24} className={chatState === 'already_requested' ? "text-gray-500" : "text-black"} />
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${chatState === 'already_requested' ? "text-gray-500" : "text-black"}`}>
+                    {chatState === 'loading' ? '...' : 
+                     chatState === 'already_requested' ? 'Pending' :
+                     chatState === 'exist' ? 'Chat' : 'Message'}
+                  </span>
+                </Link>
+              ) : (
+                <button
+                  disabled
+                  className="bg-white border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-2 opacity-50 cursor-not-allowed"
+                  title="Messaging disabled"
+                >
+                  <MessageSquare size={24} className="text-black" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Message</span>
+                </button>
+              )}
 
               {isLoggedInViewer && !isPrivate ? (
                 <a

@@ -41,9 +41,47 @@ if ($request_uri === '/auth/callback') {
     require_once __DIR__ . '/controller/auth/callback.php';
     exit();
 }
+if ($request_uri === '/api/social_discover') {
+    require_once __DIR__ . '/controller/api/social_discover.php';
+    exit();
+}
+
+if (strpos($request_uri, '/auth/') === 0) {
+    if (strpos($request_uri, '/auth/login') === 0) {
+        require_once __DIR__ . '/controller/auth/login.php';
+        exit();
+    }
+    if (strpos($request_uri, '/auth/callback') === 0) {
+        require_once __DIR__ . '/controller/auth/callback.php';
+        exit();
+    }
+    if (strpos($request_uri, '/auth/logout') === 0) {
+        require_once __DIR__ . '/controller/auth/logout.php';
+        exit();
+    }
+}
+
+if (strpos($request_uri, '/testlogin/') === 0) {
+    require_once __DIR__ . '/controller/auth/testlogin.php';
+    exit();
+}
+if (preg_match('#^/api/users/([^/]+)/inbox$#', $request_uri)) {
+    require_once __DIR__ . '/controller/api/inbox.php';
+    exit();
+}
 
 if (strpos($request_uri, '/api/public_profile') === 0) {
     require_once __DIR__ . '/controller/api/public_profile.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/conversations') === 0) {
+    require_once __DIR__ . '/controller/api/conversations.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/chat_requests') === 0) {
+    require_once __DIR__ . '/controller/api/chat_requests.php';
     exit();
 }
 
