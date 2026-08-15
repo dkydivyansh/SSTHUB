@@ -157,6 +157,7 @@ if (preg_match('#^/api/conversations/(\d+)/messages$#', $request_uri, $matches))
         $input = json_decode(file_get_contents('php://input'), true);
         $content = trim($input['content'] ?? '');
         $media = $input['media'] ?? [];
+        $reply_to = $input['reply_to'] ?? null;
         if (!is_array($media)) {
             $media = [];
         }
@@ -198,6 +199,9 @@ if (preg_match('#^/api/conversations/(\d+)/messages$#', $request_uri, $matches))
         $payload = ['text' => $content];
         if (!empty($media)) {
             $payload['media'] = $media;
+        }
+        if (!empty($reply_to) && is_array($reply_to)) {
+            $payload['reply_to'] = $reply_to;
         }
         $jsonContent = json_encode($payload);
 
@@ -372,17 +376,25 @@ if (preg_match('#^/api/conversations/(\d+)/messages/(\d+)/reactions$#', $request
         }
 
         $reactions = $parsed['reactions'];
-        if (!isset($reactions[$reaction])) {
-            $reactions[$reaction] = [];
+        $wasInSameReaction = false;
+
+        foreach ($reactions as $emoji => $users) {
+            $userIndex = array_search($user_id, $users);
+            if ($userIndex !== false) {
+                if ($emoji === $reaction) {
+                    $wasInSameReaction = true;
+                }
+                array_splice($reactions[$emoji], $userIndex, 1);
+            }
+            if (empty($reactions[$emoji])) {
+                unset($reactions[$emoji]);
+            }
         }
 
-        $userIndex = array_search($user_id, $reactions[$reaction]);
-        if ($userIndex !== false) {
-            array_splice($reactions[$reaction], $userIndex, 1);
-            if (empty($reactions[$reaction])) {
-                unset($reactions[$reaction]);
+        if (!$wasInSameReaction) {
+            if (!isset($reactions[$reaction])) {
+                $reactions[$reaction] = [];
             }
-        } else {
             $reactions[$reaction][] = $user_id;
         }
 

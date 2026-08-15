@@ -7,12 +7,48 @@ export default function Profile() {
   const { userData } = useOutletContext<{ userData: any }>();
   const [copied, setCopied] = useState(false);
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = `${window.location.origin}/u/${userData.rollno}`;
-    navigator.clipboard.writeText(url).then(() => {
+    
+    // First try the native share menu (requires HTTPS)
+    if (navigator.share && window.isSecureContext) {
+      try {
+        await navigator.share({
+          title: `${userData.name}'s Profile on SSTHUB`,
+          url: url
+        });
+        return;
+      } catch (err) {
+        console.error('Share cancelled or failed', err);
+      }
+    } 
+
+    // Fallback 1: modern clipboard API (requires HTTPS)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+      return;
+    }
+
+    // Fallback 2: Old school execCommand (works on HTTP local LAN)
+    const textArea = document.createElement("textarea");
+    textArea.value = url;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch (err) {
+      console.error('Fallback clipboard failed', err);
+    }
+    textArea.remove();
   };
 
   let extraData = { description: '', social: { github: '', portfolio: '', instagram: '', linkedin: '', hackerone: '' }, clubs: { nlogn: '' }, research: { orcid: '' }, disable_public_profile: false, interests: [] as string[] };
@@ -109,8 +145,9 @@ export default function Profile() {
           <span className="text-[10px]">View Public</span>
         </Link>
         <button 
+          type="button"
           onClick={disable_public_profile ? undefined : handleShare}
-          className={`bg-white text-black font-black uppercase tracking-widest p-3 border-4 border-black transition-all flex flex-col items-center justify-center gap-2 w-full text-center relative ${disable_public_profile ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)]'}`}
+          className={`bg-white text-black font-black uppercase tracking-widest p-3 border-4 border-black transition-all flex flex-col items-center justify-center gap-2 w-full text-center relative ${disable_public_profile ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)]'}`}
         >
           {disable_public_profile && (
             <div className="absolute -top-3 -right-3 bg-red-500 text-white text-[9px] px-2 py-1 border-2 border-black z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">

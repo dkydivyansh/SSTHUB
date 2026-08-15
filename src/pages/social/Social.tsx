@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft, Trash, Ban, Image as ImageIcon, X as XIcon, Paperclip, Video, Music, FileText, Download, Play, ExternalLink, Smile } from 'lucide-react';
+import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft, Trash, Ban, Image as ImageIcon, X as XIcon, Paperclip, Video, Music, FileText, Download, Play, ExternalLink, Smile, Reply } from 'lucide-react';
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -40,8 +40,15 @@ export default function Social() {
   const [lightboxMedia, setLightboxMedia] = useState<LightboxMedia | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [errorToast, setErrorToast] = useState<string | null>(null);
-  const [activeReactionMenu, setActiveReactionMenu] = useState<number | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{message_id: number, text: string} | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchCurrentX = useRef<number | null>(null);
+
+  const closeAllMenus = () => {
+    setShowAttachMenu(false);
+    setSelectedMessageId(null);
+  };
 
   const showError = (msg: string) => {
     setErrorToast(msg);
@@ -349,6 +356,9 @@ export default function Social() {
       if (mediaPayload.length > 0) {
         payload.media = mediaPayload;
       }
+      if (replyingTo) {
+        payload.reply_to = replyingTo;
+      }
 
       const res = await fetch(`/api/conversations/${activeChat.conversation_id}/messages`, {
         method: 'POST',
@@ -357,7 +367,7 @@ export default function Social() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        const fullPayload = { text: encodedMsg, media: mediaPayload };
+        const fullPayload = { text: encodedMsg, media: mediaPayload, reply_to: replyingTo };
         setMessages(prev => [...prev, {
           message_id: data.data.message_id,
           content: JSON.stringify(fullPayload),
@@ -366,7 +376,10 @@ export default function Social() {
           sender_avatar: userData?.avatar,
           created_at: new Date().toISOString()
         }]);
-
+        setNewMessage('');
+        setAttachments([]);
+        setReplyingTo(null);
+        
         lastSeenMsgIdRef.current = data.data.message_id;
         fetch(`/api/conversations/${activeChat.conversation_id}/seen`, {
           method: 'POST',
@@ -401,13 +414,13 @@ export default function Social() {
   };
 
   const parseMessageData = (jsonStr: string) => {
-    if (!jsonStr) return { text: 'No messages yet', media: [], status: null, reactions: {} };
+    if (!jsonStr) return { text: 'No messages yet', media: [], status: null, reactions: {}, reply_to: null };
 
     if (jsonStr.startsWith('B64:')) {
       try {
-        return { text: decodeURIComponent(escape(atob(jsonStr.substring(4)))), media: [], status: null, reactions: {} };
+        return { text: decodeURIComponent(escape(atob(jsonStr.substring(4)))), media: [], status: null, reactions: {}, reply_to: null };
       } catch (e) {
-        return { text: jsonStr, media: [], status: null, reactions: {} };
+        return { text: jsonStr, media: [], status: null, reactions: {}, reply_to: null };
       }
     }
 
@@ -423,17 +436,18 @@ export default function Social() {
         text, 
         media: parsed.media || [], 
         status: parsed.status,
-        reactions: parsed.reactions || {}
+        reactions: parsed.reactions || {},
+        reply_to: parsed.reply_to || null
       };
     } catch {
-      return { text: jsonStr, media: [], status: null, reactions: {} };
+      return { text: jsonStr, media: [], status: null, reactions: {}, reply_to: null };
     }
   };
 
   const toggleReaction = async (messageId: number, reaction: string) => {
     if (!activeChat) return;
     try {
-      const res = await fetch(`/api/conversations/${activeChat.id}/messages/${messageId}/reactions`, {
+      const res = await fetch(`/api/conversations/${activeChat.conversation_id}/messages/${messageId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reaction })
@@ -456,6 +470,13 @@ export default function Social() {
     } finally {
       setActiveReactionMenu(null);
     }
+  };
+
+  const getPlainPreviewText = (parsedMsg: any) => {
+    if (parsedMsg.status === 'deleted') return 'Deleted message';
+    if (parsedMsg.text) return parsedMsg.text.length > 50 ? parsedMsg.text.substring(0, 50) + '...' : parsedMsg.text;
+    if (parsedMsg.media && parsedMsg.media.length > 0) return 'Attachment';
+    return '';
   };
 
   const getPreviewText = (jsonStr: string) => {
@@ -785,7 +806,10 @@ export default function Social() {
       </div>
 
       {/* Right Column - Chat Area */}
-      <div className={`bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-col min-h-[400px] ${activeChat ? 'fixed inset-0 z-[60] md:static md:flex-1 flex border-0 md:border-4 shadow-none md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'hidden md:flex flex-1'}`}>
+      <div 
+        className={`bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-col min-h-[400px] ${activeChat ? 'fixed inset-0 z-[60] md:static md:flex-1 flex border-0 md:border-4 shadow-none md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'hidden md:flex flex-1'}`}
+        onClick={closeAllMenus}
+      >
         {activeChat ? (
           /* Active Chat View */
           <div className="flex flex-col h-full">
@@ -838,25 +862,48 @@ export default function Social() {
                     <div key={msg.message_id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[80%] ${isMine ? 'flex-row-reverse' : ''}`}>
                         <div 
-                          className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-gray-200 text-black'} relative group cursor-pointer md:cursor-default`}
+                          className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-gray-200 text-black'} relative group cursor-pointer md:cursor-default transition-transform`}
                           onClick={() => {
-                            if (window.innerWidth < 768 && isMine && !msg.content?.includes('"status":"deleted"')) {
+                            if (window.innerWidth < 768 && !msg.content?.includes('"status":"deleted"')) {
                               setSelectedMessageId(prev => prev === msg.message_id ? null : msg.message_id);
                             }
                           }}
-                          onTouchStart={() => {
+                          onTouchStart={(e) => {
                             if (parsedMsg.status === 'deleted') return;
-                            longPressTimer.current = setTimeout(() => setActiveReactionMenu(msg.message_id), 500);
+                            touchStartX.current = e.touches[0].clientX;
                           }}
-                          onTouchEnd={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
-                          onTouchMove={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
+                          onTouchEnd={(e) => {
+                            if (touchStartX.current) {
+                              const currentX = touchCurrentX.current ?? touchStartX.current;
+                              const diff = currentX - touchStartX.current;
+                              
+                              if (Math.abs(diff) < 10) {
+                                // It was a tap (less than 10px movement)
+                                if (window.innerWidth < 768 && !msg.content?.includes('"status":"deleted"')) {
+                                  setSelectedMessageId(prev => prev === msg.message_id ? null : msg.message_id);
+                                }
+                              } else if ((!isMine && diff > 50) || (isMine && diff < -50)) {
+                                setReplyingTo({ message_id: msg.message_id, text: getPlainPreviewText(parsedMsg) });
+                              }
+                            }
+                            e.currentTarget.style.transform = 'translateX(0)';
+                            touchStartX.current = null;
+                            touchCurrentX.current = null;
+                          }}
+                          onTouchMove={(e) => {
+                            if (touchStartX.current) {
+                              const currentX = e.touches[0].clientX;
+                              const diff = currentX - touchStartX.current;
+                              if ((!isMine && diff > 0 && diff < 80) || (isMine && diff < 0 && diff > -80)) {
+                                e.currentTarget.style.transform = `translateX(${diff}px)`;
+                                touchCurrentX.current = currentX;
+                              }
+                            }
+                          }}
                         >
-                          {activeReactionMenu === msg.message_id && (
-                            <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-2 flex gap-2 z-50 text-black">
-                              {['👍', '❤️', '😂', '😮', '😢', '👏'].map(emoji => (
-                                <button key={emoji} onClick={(e) => { e.stopPropagation(); toggleReaction(msg.message_id, emoji); }} className="hover:scale-125 transition-transform text-lg">{emoji}</button>
-                              ))}
-                              <button onClick={(e) => { e.stopPropagation(); setActiveReactionMenu(null); }} className="ml-1 border-l-2 pl-2 border-black hover:scale-125 transition-transform"><XIcon size={16}/></button>
+                          {parsedMsg.reply_to && (
+                            <div className={`mb-2 p-2 border-l-4 border-black text-xs font-bold truncate opacity-80 ${isMine ? 'bg-black/20 text-white' : 'bg-black/10 text-black'}`}>
+                              {parsedMsg.reply_to.text || 'Message'}
                             </div>
                           )}
                           <div className="font-bold text-sm break-words whitespace-pre-wrap">
@@ -906,24 +953,38 @@ export default function Social() {
                               ))}
                             </div>
                           )}
-                          {isMine && !msg.content?.includes('"status":"deleted"') && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteMessage(msg.message_id); }}
-                              className={`absolute top-[-10px] right-[-10px] bg-red-500 text-white p-1 border-2 border-black rounded-full transition-all hover:scale-110 ${selectedMessageId === msg.message_id ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'} z-10`}
-                              title="Delete Message"
-                            >
-                              <Trash size={12} />
-                            </button>
-                          )}
-                          {!msg.content?.includes('"status":"deleted"') && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setActiveReactionMenu(msg.message_id); }}
-                              className={`absolute bottom-[-10px] ${isMine ? 'left-[-10px]' : 'right-[-10px]'} bg-yellow-300 text-black p-1 border-2 border-black rounded-full transition-all hover:scale-110 opacity-0 md:group-hover:opacity-100 z-10`}
-                              title="Add Reaction"
-                            >
-                              <Smile size={12} />
-                            </button>
-                          )}
+                          <div className={`absolute top-[calc(100%-10px)] ${isMine ? 'right-4' : 'left-4'} flex flex-wrap items-center gap-2 bg-white border-2 border-black p-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all z-20 ${selectedMessageId === msg.message_id ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95 md:group-hover:opacity-100 md:group-hover:pointer-events-auto md:group-hover:scale-100'}`}>
+                            {!msg.content?.includes('"status":"deleted"') && (
+                              <>
+                                <div className="flex gap-1 px-1">
+                                  {['👍', '❤️', '😂', '😮', '😢', '👏'].map(emoji => (
+                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); toggleReaction(msg.message_id, emoji); setSelectedMessageId(null); }} className="hover:scale-125 transition-transform text-lg">{emoji}</button>
+                                  ))}
+                                </div>
+                                <div className="w-[2px] h-4 bg-black/20"></div>
+                                <button
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setReplyingTo({ message_id: msg.message_id, text: getPlainPreviewText(parsedMsg) }); 
+                                    setSelectedMessageId(null);
+                                  }}
+                                  className="bg-blue-300 text-black p-1.5 border-2 border-black hover:scale-110 transition-transform"
+                                  title="Reply"
+                                >
+                                  <Reply size={14} />
+                                </button>
+                              </>
+                            )}
+                            {isMine && !msg.content?.includes('"status":"deleted"') && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteMessage(msg.message_id); }}
+                                className="bg-red-500 text-white p-1.5 border-2 border-black hover:scale-110 transition-transform"
+                                title="Delete Message"
+                              >
+                                <Trash size={14} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -967,15 +1028,27 @@ export default function Social() {
             )}
             
             {/* Message Input - sticky bottom on mobile */}
-            <div className="p-2 md:p-3 border-t-4 border-black bg-white shrink-0">
+            <div className="p-2 md:p-3 border-t-4 border-black bg-white shrink-0 flex flex-col">
+              {replyingTo && (
+                <div className="flex items-center justify-between bg-gray-100 border-2 border-black p-2 mb-2 w-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Replying to</span>
+                    <span className="text-xs font-bold text-gray-700 truncate">{replyingTo.text}</span>
+                  </div>
+                  <button type="button" onClick={() => setReplyingTo(null)} className="p-1 hover:scale-110 transition-transform text-black shrink-0">
+                    <XIcon size={16} />
+                  </button>
+                </div>
+              )}
               <form 
                 onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
-                className="flex gap-2 items-end"
+                className="flex gap-2 items-end w-full"
               >
                 <input type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileChange} />
                 <div className="relative group/attach shrink-0">
                   <button type="button" 
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (window.innerWidth < 768) setShowAttachMenu(!showAttachMenu);
                     }}
                     className="bg-gray-200 h-[44px] md:h-[52px] border-4 border-black px-3 md:px-4 text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center peer"
