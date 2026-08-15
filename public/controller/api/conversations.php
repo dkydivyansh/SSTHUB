@@ -156,14 +156,42 @@ if (preg_match('#^/api/conversations/(\d+)/messages$#', $request_uri, $matches))
     if ($request_method === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true);
         $content = trim($input['content'] ?? '');
+        $media = $input['media'] ?? [];
+        if (!is_array($media)) {
+            $media = [];
+        }
 
-        if (empty($content)) {
+        if (count($media) > 10) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Message content is required']);
+            echo json_encode(['status' => 'error', 'message' => 'Maximum 10 media attachments allowed']);
             exit();
         }
 
-        $jsonContent = json_encode(['text' => $content]);
+        foreach ($media as $item) {
+            if (!isset($item['type']) || !isset($item['data']) || $item['type'] !== 'image') {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'message' => 'Invalid media format']);
+                exit();
+            }
+            // Base64 string for 2MB is ~2.8MB, allow up to 3MB length
+            if (strlen($item['data']) > 3145728) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'message' => 'Image size exceeds 2MB limit']);
+                exit();
+            }
+        }
+
+        if (empty($content) && empty($media)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Message content or media is required']);
+            exit();
+        }
+
+        $payload = ['text' => $content];
+        if (!empty($media)) {
+            $payload['media'] = $media;
+        }
+        $jsonContent = json_encode($payload);
 
         try {
             $stmt = $conn->prepare("INSERT INTO messages (conversation_id, sender_id, content) VALUES (?, ?, ?)");

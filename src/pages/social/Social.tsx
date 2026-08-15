@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft, Trash, Ban } from 'lucide-react';
+import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft, Trash, Ban, Image as ImageIcon, X as XIcon } from 'lucide-react';
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -32,6 +32,9 @@ export default function Social() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  
+  const [attachments, setAttachments] = useState<{type: string, data: string}[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startchatRollno = searchParams.get('startchat');
   const isFetching = useRef(false);
@@ -171,30 +174,73 @@ export default function Social() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    if (attachments.length + files.length > 10) {
+      alert('You can only attach a maximum of 10 images.');
+      return;
+    }
+    
+    files.forEach(file => {
+      if (file.size > 2 * 1024 * 1024) {
+        alert(`File ${file.name} is larger than 2MB.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setAttachments(prev => {
+            if (prev.length >= 10) return prev;
+            return [...prev, { type: 'image', data: ev.target!.result as string }];
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || !activeChat || sendingMessage) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !activeChat || sendingMessage) return;
     setSendingMessage(true);
     const msg = newMessage.trim();
+    const currentAttachments = [...attachments];
     setNewMessage('');
+    setAttachments([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
 
     // Base64 encode to safely handle newlines and special characters in JSON
-    const encodedMsg = 'B64:' + btoa(unescape(encodeURIComponent(msg)));
+    let encodedMsg = '';
+    if (msg) {
+      encodedMsg = 'B64:' + btoa(unescape(encodeURIComponent(msg)));
+    }
 
     try {
+      const payload: any = { content: encodedMsg };
+      if (currentAttachments.length > 0) {
+        payload.media = currentAttachments;
+      }
+
       const res = await fetch(`/api/conversations/${activeChat.conversation_id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: encodedMsg })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.status === 'success') {
+        const fullPayload = { text: encodedMsg, media: currentAttachments };
         // Immediately add optimistic message
         setMessages(prev => [...prev, {
           message_id: data.data.message_id,
-          content: JSON.stringify({ text: encodedMsg }),
+          content: JSON.stringify(fullPayload),
           sender_id: currentUserId,
           sender_name: userData?.name,
           sender_avatar: userData?.avatar,
@@ -214,7 +260,7 @@ export default function Social() {
           const idx = newInbox.findIndex(c => c.conversation_id === activeChat.conversation_id);
           if (idx !== -1) {
             const chat = newInbox[idx];
-            chat.last_message = JSON.stringify({ text: encodedMsg });
+            chat.last_message = JSON.stringify(fullPayload);
             chat.last_message_time = new Date().toISOString();
             chat.unread_count = 0;
             newInbox.splice(idx, 1);
@@ -224,39 +270,58 @@ export default function Social() {
         });
       } else {
         setNewMessage(msg); // restore on failure
+        setAttachments(currentAttachments);
         alert(data.message || 'Failed to send message');
       }
     } catch (e) {
       setNewMessage(msg);
+      setAttachments(currentAttachments);
       alert('Network error');
     } finally {
       setSendingMessage(false);
     }
   };
 
-  const parseMessage = (jsonStr: string) => {
-    if (!jsonStr) return 'No messages yet';
+  const parseMessageData = (jsonStr: string) => {
+    if (!jsonStr) return { text: 'No messages yet', media: [], status: null };
+
+    if (jsonStr.startsWith('B64:')) {
+      try {
+        return { text: decodeURIComponent(escape(atob(jsonStr.substring(4)))), media: [], status: null };
+      } catch (e) {
+        return { text: jsonStr, media: [], status: null };
+      }
+    }
+
     try {
       const parsed = JSON.parse(jsonStr);
-      if (parsed.status === 'deleted') {
-        return (
-          <span className="italic text-gray-400 inline-flex items-center gap-1">
-            <Ban size={12} className="shrink-0" /> This message was deleted
-          </span>
-        );
-      }
-      let text = parsed.text || 'Message';
+      let text = parsed.text || '';
       if (text.startsWith('B64:')) {
         try {
           text = decodeURIComponent(escape(atob(text.substring(4))));
-        } catch (e) {
-          // fallback if decoding fails
-        }
+        } catch (e) {}
       }
-      return text;
+      return { 
+        text, 
+        media: parsed.media || [], 
+        status: parsed.status 
+      };
     } catch {
-      return jsonStr;
+      return { text: jsonStr, media: [], status: null };
     }
+  };
+
+  const getPreviewText = (jsonStr: string) => {
+    const data = parseMessageData(jsonStr);
+    if (data.status === 'deleted') {
+      return (
+        <span className="italic text-gray-400 inline-flex items-center gap-1">
+          <Ban size={12} className="shrink-0" /> This message was deleted
+        </span>
+      );
+    }
+    if (!data.text && data.media && data.media.length > 0) return '📸 Photo';
+    return data.text;
   };
 
   const deleteMessage = async (messageId: number) => {
@@ -418,7 +483,7 @@ export default function Social() {
                             {chat.other_user_rollno}
                           </div>
                         </div>
-                        <div className="text-xs font-bold text-gray-500 truncate">{parseMessage(chat.last_message)}</div>
+                        <div className="text-xs font-bold text-gray-500 truncate">{getPreviewText(chat.last_message)}</div>
                       </div>
                     </div>
                     {chat.unread_count > 0 && activeChat?.conversation_id !== chat.conversation_id && (
@@ -467,7 +532,7 @@ export default function Social() {
                                   {chat.other_user_rollno}
                                 </div>
                               </div>
-                              <div className="text-xs font-bold text-gray-500 truncate">{parseMessage(chat.last_message)}</div>
+                              <div className="text-xs font-bold text-gray-500 truncate">{getPreviewText(chat.last_message)}</div>
                             </div>
                           </div>
                           {chat.unread_count > 0 && activeChat?.conversation_id !== chat.conversation_id && (
@@ -511,7 +576,7 @@ export default function Social() {
                             <div className="ml-auto text-[10px] font-bold uppercase bg-gray-200 px-2 py-1 border border-black">{req.status}</div>
                           </div>
                           <div className="text-xs font-bold bg-gray-50 p-2 border-l-4 border-blue-500">
-                            {parseMessage(req.message)}
+                            {getPreviewText(req.message)}
                           </div>
                         </div>
                       ))}
@@ -573,6 +638,7 @@ export default function Social() {
               ) : (
                 messages.map((msg) => {
                   const isMine = String(msg.sender_id) === String(currentUserId);
+                  const parsedMsg = parseMessageData(msg.content);
                   return (
                     <div key={msg.message_id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[80%] ${isMine ? 'flex-row-reverse' : ''}`}>
@@ -584,7 +650,16 @@ export default function Social() {
                             }
                           }}
                         >
-                          <div className="font-bold text-sm break-words whitespace-pre-wrap">{parseMessage(msg.content)}</div>
+                          <div className="font-bold text-sm break-words whitespace-pre-wrap">
+                            {parsedMsg.status === 'deleted' ? getPreviewText(msg.content) : parsedMsg.text}
+                          </div>
+                          {parsedMsg.media && parsedMsg.media.length > 0 && parsedMsg.status !== 'deleted' && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {parsedMsg.media.map((m: any, i: number) => (
+                                <img key={i} src={m.data} alt="attachment" className="max-w-[200px] max-h-[200px] border-2 border-black object-contain bg-black" />
+                              ))}
+                            </div>
+                          )}
                           <div className={`text-[10px] font-bold mt-1 ${isMine ? 'text-white/60 text-right' : 'text-black/40'}`}>
                             {formatTime(msg.created_at)}
                           </div>
@@ -606,12 +681,30 @@ export default function Social() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Attachments Preview */}
+            {attachments.length > 0 && (
+              <div className="p-2 bg-gray-100 border-t-4 border-black flex gap-2 overflow-x-auto shrink-0">
+                {attachments.map((att, i) => (
+                  <div key={i} className="relative shrink-0">
+                    <img src={att.data} className="h-16 w-16 object-cover border-2 border-black" alt="preview" />
+                    <button onClick={() => removeAttachment(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 border-2 border-black">
+                      <XIcon size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             {/* Message Input - sticky bottom on mobile */}
             <div className="p-2 md:p-3 border-t-4 border-black bg-white shrink-0">
               <form 
                 onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
                 className="flex gap-2 items-end"
               >
+                <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-gray-200 h-[44px] md:h-[52px] border-4 border-black px-3 md:px-4 text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all shrink-0 flex items-center justify-center">
+                  <ImageIcon size={20} />
+                </button>
                 <textarea
                   ref={textareaRef}
                   value={newMessage}
@@ -687,7 +780,7 @@ export default function Social() {
                         </div>
                       </div>
                       <div className="bg-gray-100 border-l-4 border-black p-3 mb-4 text-sm font-bold">
-                        "{parseMessage(req.message)}"
+                        "{getPreviewText(req.message)}"
                       </div>
                       <div className="flex gap-2">
                         <button 

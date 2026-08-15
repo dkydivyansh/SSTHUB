@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS messages (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     conversation_id BIGINT NOT NULL,
     sender_id INT,
-    content TEXT NOT NULL,
+    content LONGTEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL
@@ -67,12 +67,24 @@ CREATE INDEX idx_participants_user_id ON participants (user_id);
 -- Chat Requests Table: Handles connection requests before chat creation
 CREATE TABLE IF NOT EXISTS chat_requests (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    from_user_id INT NOT NULL,
-    to_user_id INT NOT NULL,
-    message TEXT NOT NULL,
-    status ENUM('pending', 'ignored') DEFAULT 'pending',
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    message VARCHAR(500) NOT NULL,
+    status ENUM('pending', 'accepted', 'ignored') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY (from_user_id, to_user_id)
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_request (sender_id, receiver_id)
+);
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id INT NOT NULL,
+    conversation_id BIGINT NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    file_size BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
 );
