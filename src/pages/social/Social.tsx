@@ -44,6 +44,7 @@ export default function Social() {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchCurrentX = useRef<number | null>(null);
+  const isLongPressTriggered = useRef<boolean>(false);
 
   const closeAllMenus = () => {
     setShowAttachMenu(false);
@@ -468,7 +469,7 @@ export default function Social() {
     } catch (e) {
       showError('Network error');
     } finally {
-      setActiveReactionMenu(null);
+      setSelectedMessageId(null);
     }
   };
 
@@ -861,52 +862,65 @@ export default function Social() {
                   return (
                     <div key={msg.message_id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[80%] ${isMine ? 'flex-row-reverse' : ''}`}>
-                        <div 
-                          className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-gray-200 text-black'} relative group cursor-pointer md:cursor-default transition-transform`}
-                          onClick={() => {
-                            if (window.innerWidth < 768 && !msg.content?.includes('"status":"deleted"')) {
-                              setSelectedMessageId(prev => prev === msg.message_id ? null : msg.message_id);
-                            }
-                          }}
-                          onTouchStart={(e) => {
-                            if (parsedMsg.status === 'deleted') return;
-                            touchStartX.current = e.touches[0].clientX;
-                          }}
-                          onTouchEnd={(e) => {
-                            if (touchStartX.current) {
-                              const currentX = touchCurrentX.current ?? touchStartX.current;
-                              const diff = currentX - touchStartX.current;
+                        <div className="relative group">
+                          {/* TOUCH TARGET FOR MESSAGE */}
+                          <div 
+                            className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-gray-200 text-black'} cursor-pointer md:cursor-default transition-transform select-none touch-pan-y`}
+                            onTouchStart={(e) => {
+                              if (parsedMsg.status === 'deleted') return;
+                              isLongPressTriggered.current = false;
+                              touchStartX.current = e.touches[0].clientX;
                               
-                              if (Math.abs(diff) < 10) {
-                                // It was a tap (less than 10px movement)
-                                if (window.innerWidth < 768 && !msg.content?.includes('"status":"deleted"')) {
-                                  setSelectedMessageId(prev => prev === msg.message_id ? null : msg.message_id);
+                              // Start long press timer
+                              longPressTimer.current = setTimeout(() => {
+                                isLongPressTriggered.current = true;
+                                if (window.innerWidth < 768) {
+                                  if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+                                  setSelectedMessageId(msg.message_id);
                                 }
-                              } else if ((!isMine && diff > 50) || (isMine && diff < -50)) {
-                                setReplyingTo({ message_id: msg.message_id, text: getPlainPreviewText(parsedMsg) });
+                              }, 400); // 400ms hold
+                            }}
+                            onTouchEnd={(e) => {
+                              if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                              
+                              if (touchStartX.current && !isLongPressTriggered.current) {
+                                const currentX = touchCurrentX.current ?? touchStartX.current;
+                                const diff = currentX - touchStartX.current;
+                                
+                                if (Math.abs(diff) > 50) {
+                                  // Swipe
+                                  if ((!isMine && diff > 50) || (isMine && diff < -50)) {
+                                    setReplyingTo({ message_id: msg.message_id, text: getPlainPreviewText(parsedMsg) });
+                                  }
+                                }
                               }
-                            }
-                            e.currentTarget.style.transform = 'translateX(0)';
-                            touchStartX.current = null;
-                            touchCurrentX.current = null;
-                          }}
-                          onTouchMove={(e) => {
-                            if (touchStartX.current) {
-                              const currentX = e.touches[0].clientX;
-                              const diff = currentX - touchStartX.current;
-                              if ((!isMine && diff > 0 && diff < 80) || (isMine && diff < 0 && diff > -80)) {
-                                e.currentTarget.style.transform = `translateX(${diff}px)`;
-                                touchCurrentX.current = currentX;
+                              e.currentTarget.style.transform = 'translateX(0)';
+                              touchStartX.current = null;
+                              touchCurrentX.current = null;
+                            }}
+                            onTouchMove={(e) => {
+                              if (touchStartX.current) {
+                                const currentX = e.touches[0].clientX;
+                                const diff = currentX - touchStartX.current;
+                                
+                                // Cancel long press if they move their finger more than 10px
+                                if (Math.abs(diff) > 10 && longPressTimer.current) {
+                                  clearTimeout(longPressTimer.current);
+                                }
+
+                                if ((!isMine && diff > 0 && diff < 80) || (isMine && diff < 0 && diff > -80)) {
+                                  e.currentTarget.style.transform = `translateX(${diff}px)`;
+                                  touchCurrentX.current = currentX;
+                                }
                               }
-                            }
-                          }}
-                        >
-                          {parsedMsg.reply_to && (
-                            <div className={`mb-2 p-2 border-l-4 border-black text-xs font-bold truncate opacity-80 ${isMine ? 'bg-black/20 text-white' : 'bg-black/10 text-black'}`}>
-                              {parsedMsg.reply_to.text || 'Message'}
-                            </div>
-                          )}
-                          <div className="font-bold text-sm break-words whitespace-pre-wrap">
+                            }}
+                          >
+                            {parsedMsg.reply_to && (
+                              <div className={`mb-2 p-2 border-l-4 border-black text-xs font-bold truncate opacity-80 ${isMine ? 'bg-black/20 text-white' : 'bg-black/10 text-black'}`}>
+                                {parsedMsg.reply_to.text || 'Message'}
+                              </div>
+                            )}
+                            <div className="font-bold text-sm break-words whitespace-pre-wrap">
                             {parsedMsg.status === 'deleted' ? getPreviewText(msg.content) : parsedMsg.text}
                           </div>
                           {parsedMsg.media && parsedMsg.media.length > 0 && parsedMsg.status !== 'deleted' && (
@@ -953,22 +967,26 @@ export default function Social() {
                               ))}
                             </div>
                           )}
+                          </div>
+
+                          {/* ACTION MENU (Separated from touch target) */}
                           <div className={`absolute top-[calc(100%-10px)] ${isMine ? 'right-4' : 'left-4'} flex flex-wrap items-center gap-2 bg-white border-2 border-black p-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all z-20 ${selectedMessageId === msg.message_id ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95 md:group-hover:opacity-100 md:group-hover:pointer-events-auto md:group-hover:scale-100'}`}>
                             {!msg.content?.includes('"status":"deleted"') && (
                               <>
                                 <div className="flex gap-1 px-1">
                                   {['👍', '❤️', '😂', '😮', '😢', '👏'].map(emoji => (
-                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); toggleReaction(msg.message_id, emoji); setSelectedMessageId(null); }} className="hover:scale-125 transition-transform text-lg">{emoji}</button>
+                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); toggleReaction(msg.message_id, emoji); setSelectedMessageId(null); }} className="hover:scale-125 transition-transform text-lg select-none" type="button">{emoji}</button>
                                   ))}
                                 </div>
                                 <div className="w-[2px] h-4 bg-black/20"></div>
                                 <button
+                                  type="button"
                                   onClick={(e) => { 
                                     e.stopPropagation(); 
                                     setReplyingTo({ message_id: msg.message_id, text: getPlainPreviewText(parsedMsg) }); 
                                     setSelectedMessageId(null);
                                   }}
-                                  className="bg-blue-300 text-black p-1.5 border-2 border-black hover:scale-110 transition-transform"
+                                  className="bg-blue-300 text-black p-1.5 border-2 border-black hover:scale-110 transition-transform select-none"
                                   title="Reply"
                                 >
                                   <Reply size={14} />
@@ -977,8 +995,9 @@ export default function Social() {
                             )}
                             {isMine && !msg.content?.includes('"status":"deleted"') && (
                               <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); deleteMessage(msg.message_id); }}
-                                className="bg-red-500 text-white p-1.5 border-2 border-black hover:scale-110 transition-transform"
+                                className="bg-red-500 text-white p-1.5 border-2 border-black hover:scale-110 transition-transform select-none"
                                 title="Delete Message"
                               >
                                 <Trash size={14} />
