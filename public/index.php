@@ -85,6 +85,16 @@ if (strpos($request_uri, '/api/chat_requests') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/upload_chunk') === 0) {
+    require_once __DIR__ . '/controller/api/upload_chunk.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/attachments') === 0) {
+    require_once __DIR__ . '/controller/api/attachments.php';
+    exit();
+}
+
 // Default route - Serve the React application
 $html_file = __DIR__ . '/index.html';
 if (file_exists($html_file)) {

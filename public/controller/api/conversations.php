@@ -168,15 +168,23 @@ if (preg_match('#^/api/conversations/(\d+)/messages$#', $request_uri, $matches))
         }
 
         foreach ($media as $item) {
-            if (!isset($item['type']) || !isset($item['data']) || $item['type'] !== 'image') {
+            if (!isset($item['type'])) {
                 http_response_code(400);
                 echo json_encode(['status' => 'error', 'message' => 'Invalid media format']);
                 exit();
             }
-            // Base64 string for 2MB is ~2.8MB, allow up to 3MB length
-            if (strlen($item['data']) > 3145728) {
+            
+            if ($item['type'] === 'image' && isset($item['data'])) {
+                if (strlen($item['data']) > 3145728) {
+                    http_response_code(400);
+                    echo json_encode(['status' => 'error', 'message' => 'Base64 image size exceeds 2MB limit']);
+                    exit();
+                }
+            } elseif ($item['type'] === 'attachment' && isset($item['uuid'])) {
+                // Valid attachment reference
+            } else {
                 http_response_code(400);
-                echo json_encode(['status' => 'error', 'message' => 'Image size exceeds 2MB limit']);
+                echo json_encode(['status' => 'error', 'message' => 'Invalid media format']);
                 exit();
             }
         }
@@ -274,20 +282,40 @@ if (preg_match('#^/api/conversations/(\d+)/messages/(\d+)$#', $request_uri, $mat
 
     try {
         // First check if the message belongs to the user
-        $stmt = $conn->prepare("SELECT sender_id FROM messages WHERE id = ? AND conversation_id = ?");
+        $stmt = $conn->prepare("SELECT sender_id, content FROM messages WHERE id = ? AND conversation_id = ?");
         $stmt->execute([$message_id, $conversation_id]);
-        $sender_id = $stmt->fetchColumn();
+        $msgRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$sender_id) {
+        if (!$msgRow) {
             http_response_code(404);
             echo json_encode(['status' => 'error', 'message' => 'Message not found']);
             exit();
         }
 
-        if ($sender_id != $user_id) {
+        if ($msgRow['sender_id'] != $user_id) {
             http_response_code(403);
             echo json_encode(['status' => 'error', 'message' => 'You can only delete your own messages']);
             exit();
+        }
+
+        // Clean up any attachments linked in the content
+        if ($msgRow['content'] && !str_starts_with($msgRow['content'], 'B64:')) {
+            $parsed = json_decode($msgRow['content'], true);
+            if ($parsed && isset($parsed['media']) && is_array($parsed['media'])) {
+                foreach ($parsed['media'] as $mediaItem) {
+                    if (isset($mediaItem['type']) && $mediaItem['type'] === 'attachment' && isset($mediaItem['uuid'])) {
+                        $uuid = $mediaItem['uuid'];
+                        // Delete physical file
+                        $filePath = __DIR__ . '/../../../storage/uploads/' . $uuid . '.bin';
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
+                        // Delete DB record
+                        $stmtDel = $conn->prepare("DELETE FROM attachments WHERE id = ?");
+                        $stmtDel->execute([$uuid]);
+                    }
+                }
+            }
         }
 
         $deletedContent = json_encode(['status' => 'deleted']);
@@ -298,6 +326,76 @@ if (preg_match('#^/api/conversations/(\d+)/messages/(\d+)$#', $request_uri, $mat
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['status' => 'error', 'message' => 'Database error', 'debug' => $e->getMessage()]);
+    }
+    exit();
+}
+
+// POST /api/conversations/{id}/messages/{message_id}/reactions
+if (preg_match('#^/api/conversations/(\d+)/messages/(\d+)/reactions$#', $request_uri, $matches) && $request_method === 'POST') {
+    $conversation_id = (int)$matches[1];
+    $message_id = (int)$matches[2];
+
+    if (!isParticipant($conn, $conversation_id, $user_id)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Forbidden']);
+        exit();
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $reaction = $input['reaction'] ?? null;
+
+    if (!$reaction) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Reaction emoji required']);
+        exit();
+    }
+
+    try {
+        $stmt = $conn->prepare("SELECT content FROM messages WHERE id = ? AND conversation_id = ?");
+        $stmt->execute([$message_id, $conversation_id]);
+        $contentStr = $stmt->fetchColumn();
+
+        if ($contentStr === false) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Message not found']);
+            exit();
+        }
+
+        if (str_starts_with($contentStr, 'B64:')) {
+            $parsed = ['text' => '', 'media' => [['data' => $contentStr, 'type' => 'image']]];
+        } else {
+            $parsed = json_decode($contentStr, true);
+        }
+
+        if (!isset($parsed['reactions']) || !is_array($parsed['reactions'])) {
+            $parsed['reactions'] = [];
+        }
+
+        $reactions = $parsed['reactions'];
+        if (!isset($reactions[$reaction])) {
+            $reactions[$reaction] = [];
+        }
+
+        $userIndex = array_search($user_id, $reactions[$reaction]);
+        if ($userIndex !== false) {
+            array_splice($reactions[$reaction], $userIndex, 1);
+            if (empty($reactions[$reaction])) {
+                unset($reactions[$reaction]);
+            }
+        } else {
+            $reactions[$reaction][] = $user_id;
+        }
+
+        $parsed['reactions'] = $reactions;
+        $updatedContent = json_encode($parsed);
+
+        $stmt = $conn->prepare("UPDATE messages SET content = ? WHERE id = ?");
+        $stmt->execute([$updatedContent, $message_id]);
+
+        echo json_encode(['status' => 'success', 'reactions' => $reactions]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Database error']);
     }
     exit();
 }

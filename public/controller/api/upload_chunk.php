@@ -43,6 +43,15 @@ if (!$conversation_id || !$file_uuid || $chunk_index === null || $total_chunks =
     exit();
 }
 
+// Strict backend check for malicious files
+$ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+$banned_exts = ['php', 'php3', 'php4', 'php5', 'phtml', 'exe', 'sh', 'bat', 'vbs', 'js', 'py', 'sql', 'cmd', 'ps1', 'jar', 'msi'];
+if (in_array($ext, $banned_exts)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'File type not allowed for security reasons.']);
+    exit();
+}
+
 // Verify conversation participation
 $stmt = $conn->prepare("SELECT 1 FROM participants WHERE conversation_id = ? AND user_id = ?");
 $stmt->execute([$conversation_id, $user_id]);

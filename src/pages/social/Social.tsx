@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft, Trash, Ban, Image as ImageIcon, X as XIcon } from 'lucide-react';
+import { Search, MessageSquare, Users, Inbox, Check, X, Archive, ChevronRight, ChevronDown, Send, ArrowLeft, Trash, Ban, Image as ImageIcon, X as XIcon, Paperclip, Video, Music, FileText, Download, Play, ExternalLink, Smile } from 'lucide-react';
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -31,9 +31,43 @@ export default function Social() {
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  type LightboxMedia = {
+    url: string;
+    type: 'image' | 'video' | 'audio' | 'document';
+    name?: string;
+  };
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<LightboxMedia | null>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
+  const [activeReactionMenu, setActiveReactionMenu] = useState<number | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const showError = (msg: string) => {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(null), 5000);
+  };
+
+  const handleOpenDocument = async () => {
+    if (!lightboxMedia) return;
+    try {
+      const res = await fetch(lightboxMedia.url);
+      const blob = await res.blob();
+      
+      let mimeType = blob.type;
+      const lowerName = (lightboxMedia.name || '').toLowerCase();
+      if (lowerName.endsWith('.pdf')) mimeType = 'application/pdf';
+      else if (lowerName.endsWith('.txt')) mimeType = 'text/plain';
+      
+      const properBlob = new Blob([blob], { type: mimeType });
+      const blobUrl = URL.createObjectURL(properBlob);
+      window.open(blobUrl, '_blank');
+    } catch (e) {
+      showError('Failed to open document preview');
+    }
+  };
   
-  const [attachments, setAttachments] = useState<{type: string, data: string}[]>([]);
+  const [attachments, setAttachments] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startchatRollno = searchParams.get('startchat');
@@ -178,27 +212,52 @@ export default function Social() {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
     if (attachments.length + files.length > 10) {
-      alert('You can only attach a maximum of 10 images.');
+      showError('You can only attach a maximum of 10 files.');
       return;
     }
     
     files.forEach(file => {
-      if (file.size > 2 * 1024 * 1024) {
-        alert(`File ${file.name} is larger than 2MB.`);
+      // 50MB limit
+      if (file.size > 50 * 1024 * 1024) {
+        showError(`File ${file.name} is larger than 50MB.`);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) {
-          setAttachments(prev => {
-            if (prev.length >= 10) return prev;
-            return [...prev, { type: 'image', data: ev.target!.result as string }];
-          });
-        }
-      };
-      reader.readAsDataURL(file);
+      
+      const id = Math.random().toString(36).substring(7);
+      
+      // Hybrid logic: If < 2MB and it's an image, use base64
+      if (file.size <= 2 * 1024 * 1024 && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          if (ev.target?.result) {
+            setAttachments(prev => {
+              if (prev.length >= 10) return prev;
+              return [...prev, { 
+                id, 
+                file, 
+                previewUrl: ev.target!.result as string, 
+                isBase64: true, 
+                base64Data: ev.target!.result as string,
+                progress: 100 
+              }];
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Chunked upload needed
+        setAttachments(prev => {
+          if (prev.length >= 10) return prev;
+          return [...prev, { 
+            id, 
+            file, 
+            previewUrl: file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : '', 
+            isBase64: false,
+            progress: 0 
+          }];
+        });
+      }
     });
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -206,27 +265,89 @@ export default function Social() {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const triggerFileSelect = (accept: string) => {
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = accept;
+      fileInputRef.current.click();
+    }
+    setShowAttachMenu(false);
+  };
+
+  const uploadFileInChunks = async (file: File, conversation_id: number, onProgress: (p: number) => void) => {
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const fileUuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+    
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
+      
+      const formData = new FormData();
+      formData.append('file_uuid', fileUuid);
+      formData.append('chunk_index', i.toString());
+      formData.append('total_chunks', totalChunks.toString());
+      formData.append('conversation_id', conversation_id.toString());
+      formData.append('original_name', file.name);
+      formData.append('mime_type', file.type || 'application/octet-stream');
+      formData.append('chunk', chunk);
+      
+      const res = await fetch('/api/upload_chunk', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status !== 'success') {
+        throw new Error(data.message || 'Upload failed');
+      }
+      onProgress(Math.round(((i + 1) / totalChunks) * 100));
+    }
+    return fileUuid;
+  };
+
   const sendMessage = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || !activeChat || sendingMessage) return;
     setSendingMessage(true);
     const msg = newMessage.trim();
     const currentAttachments = [...attachments];
-    setNewMessage('');
-    setAttachments([]);
+    
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
 
-    // Base64 encode to safely handle newlines and special characters in JSON
-    let encodedMsg = '';
-    if (msg) {
-      encodedMsg = 'B64:' + btoa(unescape(encodeURIComponent(msg)));
-    }
-
     try {
+      const mediaPayload = [];
+      // Process attachments
+      for (let i = 0; i < currentAttachments.length; i++) {
+        const att = currentAttachments[i];
+        if (att.isBase64) {
+          mediaPayload.push({ type: 'image', data: att.base64Data });
+        } else {
+          // Upload chunks
+          const uuid = await uploadFileInChunks(att.file, activeChat.conversation_id, (progress) => {
+            setAttachments(prev => prev.map(a => a.id === att.id ? { ...a, progress } : a));
+          });
+          mediaPayload.push({ 
+            type: 'attachment', 
+            uuid: uuid, 
+            mime_type: att.file.type || 'application/octet-stream', 
+            original_name: att.file.name 
+          });
+        }
+      }
+
+      setNewMessage('');
+      setAttachments([]);
+
+      // Base64 encode text
+      let encodedMsg = '';
+      if (msg) {
+        encodedMsg = 'B64:' + btoa(unescape(encodeURIComponent(msg)));
+      }
+
       const payload: any = { content: encodedMsg };
-      if (currentAttachments.length > 0) {
-        payload.media = currentAttachments;
+      if (mediaPayload.length > 0) {
+        payload.media = mediaPayload;
       }
 
       const res = await fetch(`/api/conversations/${activeChat.conversation_id}/messages`, {
@@ -236,8 +357,7 @@ export default function Social() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        const fullPayload = { text: encodedMsg, media: currentAttachments };
-        // Immediately add optimistic message
+        const fullPayload = { text: encodedMsg, media: mediaPayload };
         setMessages(prev => [...prev, {
           message_id: data.data.message_id,
           content: JSON.stringify(fullPayload),
@@ -247,7 +367,6 @@ export default function Social() {
           created_at: new Date().toISOString()
         }]);
 
-        // Mark as seen immediately for the sent message
         lastSeenMsgIdRef.current = data.data.message_id;
         fetch(`/api/conversations/${activeChat.conversation_id}/seen`, {
           method: 'POST',
@@ -269,27 +388,26 @@ export default function Social() {
           return newInbox;
         });
       } else {
-        setNewMessage(msg); // restore on failure
+        setNewMessage(msg);
         setAttachments(currentAttachments);
-        alert(data.message || 'Failed to send message');
+        showError(data.message || 'Failed to send message');
       }
-    } catch (e) {
-      setNewMessage(msg);
-      setAttachments(currentAttachments);
-      alert('Network error');
+    } catch (e: any) {
+      console.error('Error sending message:', e);
+      showError(e.message || 'Network error');
     } finally {
       setSendingMessage(false);
     }
   };
 
   const parseMessageData = (jsonStr: string) => {
-    if (!jsonStr) return { text: 'No messages yet', media: [], status: null };
+    if (!jsonStr) return { text: 'No messages yet', media: [], status: null, reactions: {} };
 
     if (jsonStr.startsWith('B64:')) {
       try {
-        return { text: decodeURIComponent(escape(atob(jsonStr.substring(4)))), media: [], status: null };
+        return { text: decodeURIComponent(escape(atob(jsonStr.substring(4)))), media: [], status: null, reactions: {} };
       } catch (e) {
-        return { text: jsonStr, media: [], status: null };
+        return { text: jsonStr, media: [], status: null, reactions: {} };
       }
     }
 
@@ -304,10 +422,39 @@ export default function Social() {
       return { 
         text, 
         media: parsed.media || [], 
-        status: parsed.status 
+        status: parsed.status,
+        reactions: parsed.reactions || {}
       };
     } catch {
-      return { text: jsonStr, media: [], status: null };
+      return { text: jsonStr, media: [], status: null, reactions: {} };
+    }
+  };
+
+  const toggleReaction = async (messageId: number, reaction: string) => {
+    if (!activeChat) return;
+    try {
+      const res = await fetch(`/api/conversations/${activeChat.id}/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reaction })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setMessages(prev => prev.map(m => {
+          if (m.message_id === messageId) {
+            const parsed = parseMessageData(m.content);
+            parsed.reactions = data.reactions;
+            return { ...m, content: JSON.stringify(parsed) };
+          }
+          return m;
+        }));
+      } else {
+        showError(data.message || 'Failed to toggle reaction');
+      }
+    } catch (e) {
+      showError('Network error');
+    } finally {
+      setActiveReactionMenu(null);
     }
   };
 
@@ -320,8 +467,49 @@ export default function Social() {
         </span>
       );
     }
-    if (!data.text && data.media && data.media.length > 0) return '📸 Photo';
-    return data.text;
+    let Icon = null;
+    let fallbackText = '';
+    
+    if (data.media && data.media.length > 0) {
+      const firstMedia = data.media[0];
+      if (firstMedia.type === 'image') {
+        Icon = ImageIcon;
+        fallbackText = 'Photo';
+      } else if (firstMedia.type === 'attachment') {
+        if (firstMedia.mime_type?.startsWith('image/')) {
+          Icon = ImageIcon;
+          fallbackText = 'Photo';
+        } else if (firstMedia.mime_type?.startsWith('video/')) {
+          Icon = Video;
+          fallbackText = 'Video';
+        } else if (firstMedia.mime_type?.startsWith('audio/')) {
+          Icon = Music;
+          fallbackText = 'Audio';
+        } else {
+          Icon = FileText;
+          fallbackText = 'Document';
+        }
+      }
+    }
+    
+    if (data.text) {
+      return (
+        <span className="inline-flex items-center gap-1 w-full truncate">
+          {Icon && <Icon size={14} className="shrink-0" />}
+          <span className="truncate">{data.text}</span>
+        </span>
+      );
+    }
+    
+    if (Icon) {
+      return (
+        <span className="inline-flex items-center gap-1 text-gray-500 w-full truncate">
+          <Icon size={14} className="shrink-0" /> <span className="truncate">{fallbackText}</span>
+        </span>
+      );
+    }
+    
+    return '';
   };
 
   const deleteMessage = async (messageId: number) => {
@@ -336,10 +524,10 @@ export default function Social() {
           m.message_id === messageId ? { ...m, content: JSON.stringify({ status: 'deleted' }) } : m
         ));
       } else {
-        alert(data.message || 'Failed to delete message');
+        showError(data.message || 'Failed to delete message');
       }
     } catch (e) {
-      alert('Network error while deleting');
+      showError('Network error while deleting');
     }
   };
 
@@ -350,10 +538,10 @@ export default function Social() {
       if (data.status === 'success') {
         fetchData();
       } else {
-        alert(data.message || `Failed to ${action} request`);
+        showError(data.message || `Failed to ${action} request`);
       }
     } catch (e) {
-      alert('Network error');
+      showError('Network error');
     }
   };
 
@@ -392,7 +580,7 @@ export default function Social() {
         setSearchParams({});
         fetchData();
       } else {
-        alert(data.message || 'Failed to send request');
+        showError(data.message || 'Failed to send request');
       }
     })
     .finally(() => setSendingRequest(false));
@@ -427,7 +615,14 @@ export default function Social() {
   const ignoredReceived = receivedReqs.filter(r => r.status === 'ignored');
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 md:h-[calc(100vh-8rem)] min-h-[calc(100vh-8rem)] relative">
+    <>
+      {errorToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white p-3 md:p-4 border-4 border-black z-[100] flex gap-3 items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-top-4 font-bold text-sm md:text-base">
+          <span>{errorToast}</span>
+          <button onClick={() => setErrorToast(null)} className="hover:scale-110 transition-transform"><X size={20} /></button>
+        </div>
+      )}
+      <div className="flex flex-col md:flex-row gap-6 md:h-[calc(100vh-8rem)] min-h-[calc(100vh-8rem)] relative">
       {/* Left Column - People List */}
       <div className={`w-full md:w-1/3 flex flex-col bg-white md:border-4 md:border-black md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-h-[400px] ${activeChat ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b-4 border-black bg-[#FFF5E1]">
@@ -643,33 +838,90 @@ export default function Social() {
                     <div key={msg.message_id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[80%] ${isMine ? 'flex-row-reverse' : ''}`}>
                         <div 
-                          className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-white text-black'} relative group cursor-pointer md:cursor-default`}
+                          className={`border-2 border-black p-2 md:p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isMine ? 'bg-[#3B82F6] text-white' : 'bg-gray-200 text-black'} relative group cursor-pointer md:cursor-default`}
                           onClick={() => {
                             if (window.innerWidth < 768 && isMine && !msg.content?.includes('"status":"deleted"')) {
                               setSelectedMessageId(prev => prev === msg.message_id ? null : msg.message_id);
                             }
                           }}
+                          onTouchStart={() => {
+                            if (parsedMsg.status === 'deleted') return;
+                            longPressTimer.current = setTimeout(() => setActiveReactionMenu(msg.message_id), 500);
+                          }}
+                          onTouchEnd={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
+                          onTouchMove={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
                         >
+                          {activeReactionMenu === msg.message_id && (
+                            <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-2 flex gap-2 z-50 text-black">
+                              {['👍', '❤️', '😂', '😮', '😢', '👏'].map(emoji => (
+                                <button key={emoji} onClick={(e) => { e.stopPropagation(); toggleReaction(msg.message_id, emoji); }} className="hover:scale-125 transition-transform text-lg">{emoji}</button>
+                              ))}
+                              <button onClick={(e) => { e.stopPropagation(); setActiveReactionMenu(null); }} className="ml-1 border-l-2 pl-2 border-black hover:scale-125 transition-transform"><XIcon size={16}/></button>
+                            </div>
+                          )}
                           <div className="font-bold text-sm break-words whitespace-pre-wrap">
                             {parsedMsg.status === 'deleted' ? getPreviewText(msg.content) : parsedMsg.text}
                           </div>
                           {parsedMsg.media && parsedMsg.media.length > 0 && parsedMsg.status !== 'deleted' && (
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {parsedMsg.media.map((m: any, i: number) => (
-                                <img key={i} src={m.data} alt="attachment" className="max-w-[200px] max-h-[200px] border-2 border-black object-contain bg-black" />
-                              ))}
+                              {parsedMsg.media.map((m: any, i: number) => {
+                                if (m.type === 'image') {
+                                  return <img key={i} src={m.data} alt="attachment" onClick={() => setLightboxMedia({ url: m.data, type: 'image' })} className="max-w-[200px] max-h-[200px] border-2 border-black object-contain bg-black cursor-pointer hover:opacity-80 transition-opacity" />;
+                                } else if (m.type === 'attachment') {
+                                  const url = `/api/attachments/${m.uuid}`;
+                                  if (m.mime_type?.startsWith('image/')) {
+                                    return <img key={i} src={url} alt="attachment" onClick={() => setLightboxMedia({ url, type: 'image', name: m.original_name })} className="max-w-[200px] max-h-[200px] border-2 border-black object-contain bg-black cursor-pointer hover:opacity-80 transition-opacity" />;
+                                  } else if (m.mime_type?.startsWith('video/')) {
+                                    return (
+                                      <div key={i} onClick={() => setLightboxMedia({ url, type: 'video', name: m.original_name })} className="relative cursor-pointer w-fit h-fit border-2 border-black bg-black group">
+                                        <video src={url} className="max-w-[200px] max-h-[200px] object-contain pointer-events-none block" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors pointer-events-none">
+                                          <Play size={24} className="text-white drop-shadow-md" fill="white" />
+                                        </div>
+                                      </div>
+                                    );
+                                  } else if (m.mime_type?.startsWith('audio/')) {
+                                    return <div key={i} onClick={() => setLightboxMedia({ url, type: 'audio', name: m.original_name })} className="text-xs bg-gray-200 text-black p-2 font-bold border-2 border-black flex items-center gap-1 hover:bg-black hover:text-white transition-colors truncate max-w-[200px] cursor-pointer"><Music size={16} /> {m.original_name}</div>;
+                                  } else {
+                                    return <div key={i} onClick={() => setLightboxMedia({ url, type: 'document', name: m.original_name })} className="text-xs bg-gray-200 text-black p-2 font-bold border-2 border-black flex items-center gap-1 hover:bg-black hover:text-white transition-colors truncate max-w-[200px] cursor-pointer"><FileText size={16} /> {m.original_name}</div>;
+                                  }
+                                }
+                                return null;
+                              })}
                             </div>
                           )}
                           <div className={`text-[10px] font-bold mt-1 ${isMine ? 'text-white/60 text-right' : 'text-black/40'}`}>
                             {formatTime(msg.created_at)}
                           </div>
+                          {parsedMsg.reactions && Object.keys(parsedMsg.reactions).length > 0 && (
+                            <div className={`flex flex-wrap gap-1 mt-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                              {Object.entries(parsedMsg.reactions).map(([emoji, users]: [string, any]) => (
+                                <button 
+                                  key={emoji} 
+                                  onClick={(e) => { e.stopPropagation(); toggleReaction(msg.message_id, emoji); }}
+                                  className={`text-[10px] px-1.5 py-0.5 border border-black font-black flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-transform ${users.includes(currentUserId) ? 'bg-yellow-300 text-black' : 'bg-white text-black'}`}
+                                >
+                                  {emoji} {users.length > 1 ? users.length : ''}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {isMine && !msg.content?.includes('"status":"deleted"') && (
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteMessage(msg.message_id); }}
-                              className={`absolute top-[-10px] right-[-10px] bg-red-500 text-white p-1 border-2 border-black rounded-full transition-all hover:scale-110 ${selectedMessageId === msg.message_id ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}
+                              className={`absolute top-[-10px] right-[-10px] bg-red-500 text-white p-1 border-2 border-black rounded-full transition-all hover:scale-110 ${selectedMessageId === msg.message_id ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'} z-10`}
                               title="Delete Message"
                             >
                               <Trash size={12} />
+                            </button>
+                          )}
+                          {!msg.content?.includes('"status":"deleted"') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setActiveReactionMenu(msg.message_id); }}
+                              className={`absolute bottom-[-10px] ${isMine ? 'left-[-10px]' : 'right-[-10px]'} bg-yellow-300 text-black p-1 border-2 border-black rounded-full transition-all hover:scale-110 opacity-0 md:group-hover:opacity-100 z-10`}
+                              title="Add Reaction"
+                            >
+                              <Smile size={12} />
                             </button>
                           )}
                         </div>
@@ -685,9 +937,28 @@ export default function Social() {
             {attachments.length > 0 && (
               <div className="p-2 bg-gray-100 border-t-4 border-black flex gap-2 overflow-x-auto shrink-0">
                 {attachments.map((att, i) => (
-                  <div key={i} className="relative shrink-0">
-                    <img src={att.data} className="h-16 w-16 object-cover border-2 border-black" alt="preview" />
-                    <button onClick={() => removeAttachment(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 border-2 border-black">
+                  <div key={i} className="relative shrink-0 w-16 h-16 border-2 border-black bg-white flex flex-col justify-center items-center group overflow-hidden">
+                    {att.file.type.startsWith('image/') && att.previewUrl ? (
+                      <img src={att.previewUrl} className="w-full h-full object-cover" alt="preview" />
+                    ) : att.file.type.startsWith('video/') && att.previewUrl ? (
+                      <>
+                        <video src={att.previewUrl} className="w-full h-full object-cover" muted />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                          <Play size={20} className="text-white drop-shadow-md" fill="white" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="font-bold text-[8px] p-1 truncate w-full text-center flex flex-col items-center">
+                        {att.file.type.startsWith('audio/') ? <Music size={16} className="mb-1" /> : <FileText size={16} className="mb-1" />}
+                        <span className="truncate w-full">{att.file.name}</span>
+                      </div>
+                    )}
+                    {att.progress > 0 && att.progress < 100 && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">{att.progress}%</span>
+                      </div>
+                    )}
+                    <button onClick={() => removeAttachment(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 border-2 border-black opacity-0 group-hover:opacity-100 transition-opacity">
                       <XIcon size={12} />
                     </button>
                   </div>
@@ -701,10 +972,24 @@ export default function Social() {
                 onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
                 className="flex gap-2 items-end"
               >
-                <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-gray-200 h-[44px] md:h-[52px] border-4 border-black px-3 md:px-4 text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all shrink-0 flex items-center justify-center">
-                  <ImageIcon size={20} />
-                </button>
+                <input type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+                <div className="relative group/attach shrink-0">
+                  <button type="button" 
+                    onClick={() => {
+                      if (window.innerWidth < 768) setShowAttachMenu(!showAttachMenu);
+                    }}
+                    className="bg-gray-200 h-[44px] md:h-[52px] border-4 border-black px-3 md:px-4 text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center peer"
+                  >
+                    <Paperclip size={20} />
+                  </button>
+                  <div className={`absolute bottom-full left-0 mb-2 w-40 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col z-50 transition-all ${showAttachMenu ? 'opacity-100 visible' : 'opacity-0 invisible md:group-hover/attach:opacity-100 md:group-hover/attach:visible'}`}>
+                    <button type="button" onClick={() => triggerFileSelect('image/*')} className="flex items-center gap-2 p-3 font-bold hover:bg-gray-200 hover:text-black transition-colors border-b-2 border-black text-left"><ImageIcon size={16} /> Images</button>
+                    <button type="button" onClick={() => triggerFileSelect('video/*')} className="flex items-center gap-2 p-3 font-bold hover:bg-gray-200 hover:text-black transition-colors border-b-2 border-black text-left"><Video size={16} /> Video</button>
+                    <button type="button" onClick={() => triggerFileSelect('audio/*')} className="flex items-center gap-2 p-3 font-bold hover:bg-gray-200 hover:text-black transition-colors border-b-2 border-black text-left"><Music size={16} /> Audio</button>
+                    <button type="button" onClick={() => triggerFileSelect('application/pdf,text/plain')} className="flex items-center gap-2 p-3 font-bold hover:bg-gray-200 hover:text-black transition-colors border-b-2 border-black text-left"><FileText size={16} /> Document</button>
+                    <button type="button" onClick={() => triggerFileSelect('*/*')} className="flex items-center gap-2 p-3 font-bold hover:bg-gray-200 hover:text-black transition-colors text-left"><Archive size={16} /> Other Files</button>
+                  </div>
+                </div>
                 <textarea
                   ref={textareaRef}
                   value={newMessage}
@@ -720,7 +1005,7 @@ export default function Social() {
                 />
                 <button
                   type="submit"
-                  disabled={sendingMessage || !newMessage.trim()}
+                  disabled={sendingMessage || (!newMessage.trim() && attachments.length === 0)}
                   className="bg-[#3B82F6] h-[44px] md:h-[52px] text-white border-4 border-black px-3 md:px-4 font-black uppercase disabled:opacity-50 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all shrink-0 flex items-center justify-center"
                 >
                   <Send size={20} />
@@ -745,6 +1030,66 @@ export default function Social() {
           </div>
         )}
       </div>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {lightboxMedia && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4 cursor-pointer"
+            onClick={() => setLightboxMedia(null)}
+          >
+            <button className="absolute top-4 right-4 bg-white text-black border-2 border-black p-2 hover:bg-black hover:text-white transition-colors cursor-pointer z-10" title="Close">
+              <XIcon size={24} />
+            </button>
+            
+            <div className="relative max-w-full max-h-[80vh] flex flex-col items-center gap-6" onClick={e => e.stopPropagation()}>
+              {lightboxMedia.type === 'image' && (
+                <img src={lightboxMedia.url} className="max-w-full max-h-[60vh] border-4 border-black object-contain bg-black shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)]" alt="preview" />
+              )}
+              {lightboxMedia.type === 'video' && (
+                <video src={lightboxMedia.url} controls autoPlay className="max-w-full max-h-[60vh] border-4 border-black bg-black shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)]" />
+              )}
+              {lightboxMedia.type === 'audio' && (
+                <div className="bg-white p-8 border-4 border-black shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] flex flex-col items-center gap-6 min-w-[300px]">
+                  <Music size={64} className="text-[#3B82F6]" />
+                  <div className="font-black text-center truncate w-full px-4 text-black">{lightboxMedia.name || 'Audio File'}</div>
+                  <audio src={lightboxMedia.url} controls autoPlay className="w-full" />
+                </div>
+              )}
+              {lightboxMedia.type === 'document' && (
+                <div className="bg-white p-10 border-4 border-black shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] flex flex-col items-center gap-4 min-w-[300px]">
+                  <FileText size={80} className="text-gray-400" />
+                  <div className="font-black text-xl text-center truncate w-full max-w-[400px] text-black">{lightboxMedia.name || 'Document'}</div>
+                </div>
+              )}
+
+              {/* Save / Open Buttons */}
+              <div className="flex gap-4">
+                {lightboxMedia.type === 'document' && (lightboxMedia.name?.toLowerCase().endsWith('.pdf') || lightboxMedia.name?.toLowerCase().endsWith('.txt')) && (
+                  <button 
+                    onClick={handleOpenDocument}
+                    className="bg-yellow-300 text-black font-black uppercase tracking-widest py-3 px-8 border-4 border-black shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] transition-all flex items-center gap-2"
+                  >
+                    <ExternalLink size={20} /> Open File
+                  </button>
+                )}
+                <a 
+                  href={lightboxMedia.url} 
+                  download={lightboxMedia.name || 'download'} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="bg-[#3B82F6] text-white font-black uppercase tracking-widest py-3 px-8 border-4 border-black shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] transition-all flex items-center gap-2"
+                >
+                  <Download size={20} /> Save File
+                </a>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Incoming Requests Modal Popup */}
       <AnimatePresence>
@@ -880,5 +1225,6 @@ export default function Social() {
       </AnimatePresence>
 
     </div>
+    </>
   );
 }
