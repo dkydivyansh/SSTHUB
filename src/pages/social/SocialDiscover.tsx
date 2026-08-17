@@ -210,8 +210,8 @@ export default function SocialDiscover() {
                   </div>
                 )}
               </div>
-              <h3 className="font-black uppercase tracking-widest text-lg truncate w-full group-hover:text-[#3B82F6] transition-colors">{user.name}</h3>
-              <p className="font-bold text-xs uppercase tracking-widest text-black/50 mt-1">{user.rollno || 'NO ROLL NO'}</p>
+              <h3 className="font-black uppercase text-xl leading-tight truncate w-full text-center">{user.name}</h3>
+              <p className="font-bold text-xs uppercase tracking-widest text-black/50 mt-1 truncate max-w-full">{user.rollno || 'NO ROLL NO'}</p>
               <div className="flex items-center gap-2 mt-4 text-xs font-black uppercase tracking-widest">
                 {user.batch && <span className="bg-[#f4f4f5] px-2 py-1 border-2 border-black">B{user.batch}</span>}
                 {user.group && <span className="bg-[#f4f4f5] px-2 py-1 border-2 border-black">G{user.group}</span>}
@@ -244,18 +244,18 @@ export default function SocialDiscover() {
                 alt={selectedUser.name} 
                 className="w-32 h-32 rounded-full border-4 border-black object-cover bg-[#f4f4f5] mb-6"
               />
-              <h2 className="font-black uppercase tracking-tighter text-3xl mb-2">{selectedUser.name}</h2>
+              <h2 className="font-black uppercase tracking-tighter text-3xl mb-2 break-words w-full px-2">{selectedUser.name}</h2>
               {(selectedUser.type === 'faculty' || selectedUser.type === 'admin') && (
                 <div className="bg-red-500 text-white font-black uppercase tracking-widest text-xs px-3 py-1 border-2 border-black mb-2 flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                   <ShieldAlert size={14} /> faculty
                 </div>
               )}
-              <p className="font-bold text-lg text-black/70 mb-6">{selectedUser.email}</p>
+              <p className="font-bold text-lg text-black/70 mb-6 break-all w-full px-2">{selectedUser.email}</p>
               
               <div className="grid grid-cols-2 gap-4 w-full mb-8">
-                <div className="bg-[#f4f4f5] border-4 border-black p-3">
-                  <p className="font-black text-xl">{selectedUser.rollno || 'N/A'}</p>
-                  <p className="font-bold text-[10px] uppercase tracking-widest text-black/50">Roll Number</p>
+                <div className="bg-[#f4f4f5] border-4 border-black p-3 flex flex-col justify-center">
+                  <p className="font-black text-xl break-all">{selectedUser.rollno || 'N/A'}</p>
+                  <p className="font-bold text-[10px] uppercase tracking-widest text-black/50 mt-1">Roll Number</p>
                 </div>
                 <div className="bg-[#f4f4f5] border-4 border-black p-3">
                   <p className="font-black text-xl">{selectedUser.batch ? `${selectedUser.batch}-${selectedUser.group}` : 'N/A'}</p>

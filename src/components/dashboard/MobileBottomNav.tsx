@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, User, Users } from 'lucide-react';
+import { Home, User, Users, Globe } from 'lucide-react';
 
 export default function MobileBottomNav() {
   const location = useLocation();
@@ -21,14 +21,19 @@ export default function MobileBottomNav() {
         <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Home</span>
       </Link>
       
-      <Link to="/dash/profile" className={navItemClass('/dash/profile')}>
-        <User size={20} className={isActive('/dash/profile') ? 'fill-[#3B82F6]' : ''} />
-        <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Profile</span>
+      <Link to="/dash/community" className={navItemClass('/dash/community')}>
+        <Globe size={20} className={isActive('/dash/community') ? 'fill-[#3B82F6]' : ''} />
+        <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Community</span>
       </Link>
       
       <Link to="/dash/social" className={navItemClass('/dash/social')}>
         <Users size={20} className={isActive('/dash/social') ? 'fill-[#3B82F6]' : ''} />
         <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Social</span>
+      </Link>
+
+      <Link to="/dash/profile" className={navItemClass('/dash/profile')}>
+        <User size={20} className={isActive('/dash/profile') ? 'fill-[#3B82F6]' : ''} />
+        <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Profile</span>
       </Link>
 
     </nav>

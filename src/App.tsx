@@ -14,6 +14,8 @@ import Logout from './pages/Logout';
 import PublicProfile from './pages/PublicProfile';
 import Social from './pages/social/Social';
 import SocialDiscover from './pages/social/SocialDiscover';
+import Community from './pages/Community';
+import AdminDashboard from './pages/AdminDashboard';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import PageLoader from './components/PageLoader';
 
@@ -43,8 +45,13 @@ function AppRoutes() {
           <Route index element={<Dashboard />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/edit" element={<ProfileEdit />} />
+          <Route path="community" element={<Community />} />
           <Route path="social" element={<Social />} />
           <Route path="social/discover" element={<SocialDiscover />} />
+        </Route>
+
+        <Route path="/admindash" element={<DashboardLayout />}>
+          <Route index element={<AdminDashboard />} />
         </Route>
 
         <Route path="/logout" element={<Logout />} />

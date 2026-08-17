@@ -88,3 +88,49 @@ CREATE TABLE IF NOT EXISTS attachments (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
 );
+
+-- Community Tables
+CREATE TABLE IF NOT EXISTS community_groups (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    custom_pages JSON,
+    logo VARCHAR(255),
+    description TEXT,
+    extras JSON,
+    type ENUM('public', 'private') DEFAULT 'public',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS announcements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    groupid VARCHAR(50) NOT NULL,
+    context JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
+    pinned BOOLEAN DEFAULT FALSE,
+    extras JSON,
+    created_by INT NOT NULL,
+    FOREIGN KEY (groupid) REFERENCES community_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    groupid VARCHAR(50) NOT NULL,
+    context JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
+    pinned BOOLEAN DEFAULT FALSE,
+    extras JSON,
+    created_by INT NOT NULL,
+    FOREIGN KEY (groupid) REFERENCES community_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS groupadmin (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    groupid VARCHAR(50) NOT NULL,
+    userids JSON NOT NULL,
+    modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (groupid) REFERENCES community_groups(id) ON DELETE CASCADE
+);

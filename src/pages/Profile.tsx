@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
-import { User, Mail, Hash, Layers, Github, Globe, Instagram, Linkedin, Terminal, Code, Library, Edit2, LogOut, Share2, ExternalLink, Check } from 'lucide-react';
+import { User, Mail, Hash, Layers, Github, Globe, Instagram, Linkedin, Terminal, Code, Library, Edit2, LogOut, Share2, ExternalLink, Check, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Profile() {
@@ -78,6 +78,14 @@ export default function Profile() {
     >
       {/* Left Column Container */}
       <div className="xl:col-span-1 flex flex-col gap-6 xl:sticky xl:top-8 z-10 self-start">
+        
+        {userData.type === 'admin' && (
+          <Link to="/admindash" className="bg-black text-white font-black uppercase tracking-widest p-4 border-4 border-black hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(239,68,68,1)] transition-all flex items-center justify-center gap-3 w-full text-center group">
+            <ShieldAlert size={20} className="group-hover:text-red-500 transition-colors" />
+            Admin Dashboard
+          </Link>
+        )}
+
         {/* Profile Card */}
         <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative flex flex-col items-center">
         <Link 
