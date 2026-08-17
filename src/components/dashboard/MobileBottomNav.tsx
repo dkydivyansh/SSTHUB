@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Users, Globe, UserCog, ArrowLeft, Grid } from 'lucide-react';
+import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid } from 'lucide-react';
 
 export default function MobileBottomNav() {
   const location = useLocation();
@@ -57,7 +57,7 @@ export default function MobileBottomNav() {
           </Link>
           
           <Link to="/dash/community" className={navItemClass('/dash/community')}>
-            <Globe size={20} className={isActive('/dash/community') ? 'fill-[#3B82F6]' : ''} />
+            <Compass size={20} strokeWidth={isActive('/dash/community') ? 3 : 2} />
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Community</span>
           </Link>
           

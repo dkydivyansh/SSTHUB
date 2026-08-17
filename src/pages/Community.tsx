@@ -1,4 +1,4 @@
-import { Globe, Search, Share2, Lock, ArrowRight, UserPlus, ArrowLeft } from 'lucide-react';
+import { Compass, Search, Share2, Lock, ArrowRight, UserPlus, ArrowLeft } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -224,7 +224,7 @@ export default function Community() {
             
             <div className="bg-black text-white p-4 flex justify-between items-center shrink-0">
               <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter flex items-center gap-2">
-                <Globe size={24} /> Discover Groups
+                <Compass size={24} /> Discover Groups
               </h2>
               <button 
                 onClick={() => { setShowDiscover(false); setSearchQuery(''); }}
@@ -249,7 +249,7 @@ export default function Community() {
             <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4 md:gap-6">
               {searchQuery === '' ? (
                 <div className="text-center font-black uppercase text-gray-400 tracking-widest mt-10">
-                  <Globe size={64} className="mx-auto mb-4 opacity-50" />
+                  <Compass size={64} className="mx-auto mb-4 opacity-50" />
                   Type to search for groups
                 </div>
               ) : searching ? (
@@ -340,7 +340,7 @@ export default function Community() {
             
             <div className="bg-black text-white p-4 flex justify-between items-center shrink-0">
               <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter flex items-center gap-2 truncate">
-                <Globe size={24} className="hidden md:block shrink-0" />
+                <Compass size={24} className="hidden md:block shrink-0" />
                 {viewGroup.name}
               </h2>
               <button 
@@ -395,7 +395,7 @@ export default function Community() {
                     onClick={() => navigate(`/dash/community/${viewGroup.id}`)}
                     className="bg-emerald-500 text-black border-4 border-black py-4 font-black uppercase tracking-widest text-lg hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2"
                   >
-                    <Globe /> Open Group
+                    <Compass /> Open Group
                   </button>
                 )}
                 
