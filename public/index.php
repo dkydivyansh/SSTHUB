@@ -95,6 +95,11 @@ if (strpos($request_uri, '/api/attachments') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/admin/users') === 0) {
+    require_once __DIR__ . '/controller/api/admin_users.php';
+    exit();
+}
+
 // Default route - Serve the React application
 $html_file = __DIR__ . '/index.html';
 if (file_exists($html_file)) {
