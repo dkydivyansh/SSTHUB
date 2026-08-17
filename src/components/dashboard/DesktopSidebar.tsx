@@ -1,9 +1,10 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Home, User, Users, Globe, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, User, Users, Globe, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft, Grid } from 'lucide-react';
 import { useState } from 'react';
 
 export default function DesktopSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const isActive = (path: string) => {
@@ -20,13 +21,14 @@ export default function DesktopSidebar() {
   `;
 
   const isAdminDash = location.pathname.startsWith('/admindash');
-  const searchParams = new URLSearchParams(location.search);
-  const adminTab = searchParams.get('tab') || 'users';
+  let adminTab = 'users';
+  if (location.pathname.includes('/admindash/faculty')) adminTab = 'faculty';
+  if (location.pathname.includes('/admindash/groups')) adminTab = 'groups';
 
   const adminNavItemClass = (tab: string) => `
     flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
     ${adminTab === tab 
-      ? (tab === 'users' ? 'bg-[#3B82F6]' : 'bg-red-500') + ' text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1' 
+      ? (tab === 'users' ? 'bg-[#3B82F6]' : tab === 'faculty' ? 'bg-red-500' : 'bg-emerald-500') + ' text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1' 
       : 'bg-white text-black hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
     }
   `;
@@ -50,18 +52,22 @@ export default function DesktopSidebar() {
       <nav className="flex-1 flex flex-col gap-6 w-full">
         {isAdminDash ? (
           <>
-            <Link to="/dash" className={`${navItemClass('/dash')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
+            <button onClick={() => navigate('/dash')} className={`${navItemClass('/dash')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
               <ArrowLeft size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Back</span>
-            </Link>
-            <Link to="/admindash?tab=users" className={`${adminNavItemClass('users')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
+            </button>
+            <button onClick={() => navigate('/admindash/users')} className={`${adminNavItemClass('users')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
               <Users size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Users</span>
-            </Link>
-            <Link to="/admindash?tab=faculty" className={`${adminNavItemClass('faculty')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
+            </button>
+            <button onClick={() => navigate('/admindash/faculty')} className={`${adminNavItemClass('faculty')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
               <UserCog size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Faculty</span>
-            </Link>
+            </button>
+            <button onClick={() => navigate('/admindash/groups')} className={`${adminNavItemClass('groups')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
+              <Grid size={24} className="shrink-0" />
+              <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Groups</span>
+            </button>
           </>
         ) : (
           <>

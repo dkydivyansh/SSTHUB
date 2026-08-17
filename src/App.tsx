@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -51,7 +51,10 @@ function AppRoutes() {
         </Route>
 
         <Route path="/admindash" element={<DashboardLayout />}>
-          <Route index element={<AdminDashboard />} />
+          <Route index element={<Navigate to="users" replace />} />
+          <Route path="users" element={<AdminDashboard />} />
+          <Route path="faculty" element={<AdminDashboard />} />
+          <Route path="groups" element={<AdminDashboard />} />
         </Route>
 
         <Route path="/logout" element={<Logout />} />

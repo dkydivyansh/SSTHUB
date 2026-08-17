@@ -100,6 +100,11 @@ if (strpos($request_uri, '/api/admin/users') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/admin/groups') === 0) {
+    require_once __DIR__ . '/controller/api/admin_groups.php';
+    exit();
+}
+
 // Default route - Serve the React application
 $html_file = __DIR__ . '/index.html';
 if (file_exists($html_file)) {
