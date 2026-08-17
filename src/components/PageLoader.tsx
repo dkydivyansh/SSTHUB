@@ -14,10 +14,10 @@ export default function PageLoader() {
       setShowCloseBtn(false);
       prevLocRef.current = location.pathname;
       
-      // minimum show time of 1.5s to enjoy the animation
+      // minimum show time of 500ms
       const timer = setTimeout(() => {
         setIsLoading(false);
-      }, 1500);
+      }, 500);
       
       // show close button after 3s as fallback
       const closeTimer = setTimeout(() => {
@@ -39,7 +39,7 @@ export default function PageLoader() {
           initial={{ y: "100%" }}
           animate={{ y: 0 }}
           exit={{ y: "-100%" }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="fixed inset-0 z-[9999] bg-[#FFF5E1] flex flex-col items-center justify-center pointer-events-auto overflow-hidden border-black border-y-8"
         >
           {/* Background Decorative Elements */}

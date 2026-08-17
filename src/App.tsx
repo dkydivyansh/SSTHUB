@@ -15,6 +15,7 @@ import PublicProfile from './pages/PublicProfile';
 import Social from './pages/social/Social';
 import SocialDiscover from './pages/social/SocialDiscover';
 import Community from './pages/Community';
+import GroupPage from './pages/GroupPage';
 import AdminDashboard from './pages/AdminDashboard';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import PageLoader from './components/PageLoader';
@@ -25,10 +26,10 @@ function AppRoutes() {
 
   useEffect(() => {
     if (location.pathname !== displayLocation.pathname) {
-      // Freeze the route for 700ms while the loader slides up
+      // Freeze the route for 200ms while the loader slides up
       const timer = setTimeout(() => {
         setDisplayLocation(location);
-      }, 700);
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [location, displayLocation.pathname]);
@@ -46,6 +47,7 @@ function AppRoutes() {
           <Route path="profile" element={<Profile />} />
           <Route path="profile/edit" element={<ProfileEdit />} />
           <Route path="community" element={<Community />} />
+          <Route path="community/:groupId" element={<GroupPage />} />
           <Route path="social" element={<Social />} />
           <Route path="social/discover" element={<SocialDiscover />} />
         </Route>

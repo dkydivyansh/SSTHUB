@@ -808,7 +808,7 @@ export default function Social() {
 
       {/* Right Column - Chat Area */}
       <div 
-        className={`bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-col min-h-[400px] ${activeChat ? 'fixed inset-0 z-[60] md:static md:flex-1 flex border-0 md:border-4 shadow-none md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'hidden md:flex flex-1'}`}
+        className={`bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-col min-h-[400px] ${activeChat ? 'fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-[60] md:static md:flex-1 flex border-0 md:border-4 shadow-none md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'hidden md:flex flex-1'}`}
         onClick={closeAllMenus}
       >
         {activeChat ? (
@@ -1130,7 +1130,7 @@ export default function Social() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 cursor-pointer"
+            className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-[100] bg-black/90 flex flex-col items-center justify-center p-4 cursor-pointer"
             onClick={() => setLightboxMedia(null)}
           >
             <button className="absolute top-4 right-4 bg-white text-black border-2 border-black p-2 hover:bg-black hover:text-white transition-colors cursor-pointer z-10" title="Close">
@@ -1186,7 +1186,7 @@ export default function Social() {
       {/* Incoming Requests Modal Popup */}
       <AnimatePresence>
         {showDrawer && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -1274,7 +1274,7 @@ export default function Social() {
       {/* Send Request Modal */}
       <AnimatePresence>
         {showSendModal && targetUserData && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

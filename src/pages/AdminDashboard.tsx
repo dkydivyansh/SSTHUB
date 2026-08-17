@@ -442,7 +442,7 @@ export default function AdminDashboard() {
 
       {/* Disable User Modal */}
       {disabledMsgPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full flex flex-col gap-4">
             <h3 className="text-2xl font-black uppercase tracking-tighter text-red-500">Disable User</h3>
             <p className="font-bold">Provide a reason for disabling <strong>{disabledMsgPrompt.name}</strong>'s account. This message will be shown to them.</p>
@@ -476,7 +476,7 @@ export default function AdminDashboard() {
 
       {/* View Disabled Message Modal */}
       {viewDisabledMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full flex flex-col gap-4">
             <h3 className="text-2xl font-black uppercase tracking-tighter text-red-500">Disabled Reason</h3>
             <p className="font-bold">Message left for <strong>{viewDisabledMsg.name}</strong>:</p>
@@ -495,7 +495,7 @@ export default function AdminDashboard() {
 
       {/* Create Group Modal */}
       {showCreateGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col gap-4">
             <h3 className="text-2xl font-black uppercase tracking-tighter text-emerald-500">Create New Group</h3>
             <form onSubmit={handleCreateGroup} className="flex flex-col gap-4">
@@ -519,7 +519,7 @@ export default function AdminDashboard() {
 
       {/* Manage Admins Modal */}
       {manageAdminsGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full flex flex-col gap-4">
             <h3 className="text-2xl font-black uppercase tracking-tighter text-blue-500">Manage Admins</h3>
             <p className="font-bold">Group: {manageAdminsGroup.name}</p>

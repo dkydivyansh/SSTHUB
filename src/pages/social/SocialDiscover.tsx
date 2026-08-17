@@ -111,38 +111,38 @@ export default function SocialDiscover() {
   }, [query, filters, page]);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 md:gap-8">
       {/* Header & Search */}
-      <div className="bg-white border-4 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-        <div className="flex flex-col gap-6">
-          <div className="flex gap-4 items-center w-full">
+      <div className="bg-white border-4 border-black p-4 md:p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+        <div className="flex flex-col gap-4 md:gap-6">
+          <div className="flex gap-2 md:gap-4 items-center w-full">
             <button 
               onClick={() => navigate('/dash/social')}
-              className="bg-black text-white p-4 border-4 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all shrink-0"
+              className="bg-black text-white p-3 md:p-4 border-4 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all shrink-0"
               title="Go Back"
             >
-              <ArrowLeft size={24} />
+              <ArrowLeft size={24} className="w-5 h-5 md:w-6 md:h-6" />
             </button>
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-black/50" size={24} />
+              <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-black/50 w-5 h-5 md:w-6 md:h-6" />
               <input
                 type="text"
                 placeholder="Search name or roll (min 3 chars)..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-[#f4f4f5] border-4 border-black p-4 pl-12 font-bold outline-none focus:border-[#3B82F6] transition-colors md:text-lg"
+                className="w-full bg-[#f4f4f5] border-4 border-black p-3 md:p-4 pl-10 md:pl-12 font-bold outline-none focus:border-[#3B82F6] transition-colors text-sm md:text-lg"
               />
             </div>
           </div>
           
           {/* Filters */}
-          <div className="flex flex-col md:flex-row flex-wrap gap-4 items-start md:items-center border-t-4 border-black pt-4">
+          <div className="flex flex-col md:flex-row flex-wrap gap-3 md:gap-4 items-start md:items-center border-t-4 border-black pt-4">
             <Filter size={20} className="text-black/50 hidden md:block shrink-0" />
-            <div className="grid grid-cols-2 md:flex flex-wrap gap-4 w-full md:w-auto">
+            <div className="grid grid-cols-2 md:flex flex-wrap gap-2 md:gap-4 w-full md:w-auto">
               <select
                 value={filters.batch}
                 onChange={(e) => setFilters({ ...filters, batch: e.target.value })}
-                className="w-full md:w-auto bg-white border-4 border-black p-2 font-black uppercase tracking-widest text-sm focus:border-[#3B82F6] outline-none cursor-pointer"
+                className="w-full md:w-auto bg-white border-4 border-black p-2 md:p-3 font-black uppercase tracking-widest text-[10px] md:text-sm focus:border-[#3B82F6] outline-none cursor-pointer"
               >
                 <option value="">Any Batch</option>
                 {Array.from({ length: (new Date().getFullYear() + 4) - 2027 + 1 }, (_, i) => 2027 + i).map(year => (
@@ -152,7 +152,7 @@ export default function SocialDiscover() {
               <select
                 value={filters.group}
                 onChange={(e) => setFilters({ ...filters, group: e.target.value })}
-                className="w-full md:w-auto bg-white border-4 border-black p-2 font-black uppercase tracking-widest text-sm focus:border-[#3B82F6] outline-none cursor-pointer"
+                className="w-full md:w-auto bg-white border-4 border-black p-2 md:p-3 font-black uppercase tracking-widest text-[10px] md:text-sm focus:border-[#3B82F6] outline-none cursor-pointer"
               >
                 <option value="">Any Group</option>
                 <option value="A">Group A</option>
@@ -163,7 +163,7 @@ export default function SocialDiscover() {
               <select
                 value={filters.type}
                 onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                className="w-full md:w-auto col-span-2 md:col-span-1 bg-white border-4 border-black p-2 font-black uppercase tracking-widest text-sm focus:border-[#3B82F6] outline-none cursor-pointer"
+                className="w-full md:w-auto col-span-2 md:col-span-1 bg-white border-4 border-black p-2 md:p-3 font-black uppercase tracking-widest text-[10px] md:text-sm focus:border-[#3B82F6] outline-none cursor-pointer"
               >
                 <option value="">Any Type</option>
                 <option value="student">Student</option>
@@ -196,22 +196,22 @@ export default function SocialDiscover() {
               key={user.user_id}
               ref={isLast ? lastUserElementRef : null}
               onClick={() => setSelectedUser(user)}
-              className="bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(59,130,246,1)] transition-all cursor-pointer flex flex-col items-center p-6 text-center group"
+              className="bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(59,130,246,1)] transition-all cursor-pointer flex flex-col items-center p-4 md:p-6 text-center group"
             >
-              <div className="relative mb-4">
+              <div className="relative mb-3 md:mb-4">
                 <img 
                   src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`} 
                   alt={user.name} 
-                  className="w-24 h-24 rounded-full border-4 border-black object-cover bg-[#f4f4f5] group-hover:border-[#3B82F6] transition-colors"
+                  className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-black object-cover bg-[#f4f4f5] group-hover:border-[#3B82F6] transition-colors"
                 />
                 {isFaculty && (
-                  <div className="absolute -bottom-2 -right-2 bg-red-500 text-white p-1.5 border-2 border-black rounded-full" title="Faculty">
-                    <ShieldAlert size={16} />
+                  <div className="absolute -bottom-2 -right-2 bg-red-500 text-white p-1 md:p-1.5 border-2 border-black rounded-full" title="Faculty">
+                    <ShieldAlert size={14} className="md:w-4 md:h-4" />
                   </div>
                 )}
               </div>
-              <h3 className="font-black uppercase text-xl leading-tight truncate w-full text-center">{user.name}</h3>
-              <p className="font-bold text-xs uppercase tracking-widest text-black/50 mt-1 truncate max-w-full">{user.rollno || 'NO ROLL NO'}</p>
+              <h3 className="font-black uppercase text-lg md:text-xl leading-tight truncate w-full text-center">{user.name}</h3>
+              <p className="font-bold text-[10px] md:text-xs uppercase tracking-widest text-black/50 mt-1 truncate max-w-full">{user.rollno || 'NO ROLL NO'}</p>
               <div className="flex items-center gap-2 mt-4 text-xs font-black uppercase tracking-widest">
                 {user.batch && <span className="bg-[#f4f4f5] px-2 py-1 border-2 border-black">B{user.batch}</span>}
                 {user.group && <span className="bg-[#f4f4f5] px-2 py-1 border-2 border-black">G{user.group}</span>}
@@ -229,8 +229,8 @@ export default function SocialDiscover() {
 
       {/* Lightbox Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-white border-4 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md w-full relative">
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-white border-4 border-black p-6 md:p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md w-full relative">
             <button 
               onClick={() => setSelectedUser(null)}
               className="absolute top-4 right-4 bg-black text-white p-2 border-2 border-black hover:bg-red-500 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-1"
@@ -238,28 +238,28 @@ export default function SocialDiscover() {
               <X size={20} />
             </button>
             
-            <div className="flex flex-col items-center text-center mt-4">
+            <div className="flex flex-col items-center text-center mt-2 md:mt-4">
               <img 
                 src={selectedUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${selectedUser.name}`} 
                 alt={selectedUser.name} 
-                className="w-32 h-32 rounded-full border-4 border-black object-cover bg-[#f4f4f5] mb-6"
+                className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-black object-cover bg-[#f4f4f5] mb-4 md:mb-6"
               />
-              <h2 className="font-black uppercase tracking-tighter text-3xl mb-2 break-words w-full px-2">{selectedUser.name}</h2>
+              <h2 className="font-black uppercase tracking-tighter text-2xl md:text-3xl mb-2 break-words w-full px-2 leading-tight">{selectedUser.name}</h2>
               {(selectedUser.type === 'faculty' || selectedUser.type === 'admin') && (
-                <div className="bg-red-500 text-white font-black uppercase tracking-widest text-xs px-3 py-1 border-2 border-black mb-2 flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                  <ShieldAlert size={14} /> faculty
+                <div className="bg-red-500 text-white font-black uppercase tracking-widest text-[10px] md:text-xs px-2 py-1 md:px-3 md:py-1 border-2 border-black mb-2 flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  <ShieldAlert size={14} className="w-3 h-3 md:w-4 md:h-4" /> faculty
                 </div>
               )}
-              <p className="font-bold text-lg text-black/70 mb-6 break-all w-full px-2">{selectedUser.email}</p>
+              <p className="font-bold text-sm md:text-lg text-black/70 mb-4 md:mb-6 break-all w-full px-2">{selectedUser.email}</p>
               
-              <div className="grid grid-cols-2 gap-4 w-full mb-8">
-                <div className="bg-[#f4f4f5] border-4 border-black p-3 flex flex-col justify-center">
-                  <p className="font-black text-xl break-all">{selectedUser.rollno || 'N/A'}</p>
-                  <p className="font-bold text-[10px] uppercase tracking-widest text-black/50 mt-1">Roll Number</p>
+              <div className="grid grid-cols-2 gap-3 md:gap-4 w-full mb-6 md:mb-8">
+                <div className="bg-[#f4f4f5] border-4 border-black p-2 md:p-3 flex flex-col justify-center">
+                  <p className="font-black text-lg md:text-xl break-all">{selectedUser.rollno || 'N/A'}</p>
+                  <p className="font-bold text-[9px] md:text-[10px] uppercase tracking-widest text-black/50 mt-1">Roll Number</p>
                 </div>
-                <div className="bg-[#f4f4f5] border-4 border-black p-3">
-                  <p className="font-black text-xl">{selectedUser.batch ? `${selectedUser.batch}-${selectedUser.group}` : 'N/A'}</p>
-                  <p className="font-bold text-[10px] uppercase tracking-widest text-black/50">Batch & Group</p>
+                <div className="bg-[#f4f4f5] border-4 border-black p-2 md:p-3">
+                  <p className="font-black text-lg md:text-xl">{selectedUser.batch ? `${selectedUser.batch}-${selectedUser.group}` : 'N/A'}</p>
+                  <p className="font-bold text-[9px] md:text-[10px] uppercase tracking-widest text-black/50">Batch & Group</p>
                 </div>
               </div>
               
