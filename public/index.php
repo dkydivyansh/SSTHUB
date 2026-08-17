@@ -105,6 +105,11 @@ if (strpos($request_uri, '/api/admin/groups') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/community') === 0) {
+    require_once __DIR__ . '/controller/api/community.php';
+    exit();
+}
+
 // Default route - Serve the React application
 $html_file = __DIR__ . '/index.html';
 if (file_exists($html_file)) {
