@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Clock, Plus, X, Calendar as CalendarIcon, MapPin } from 'lucide-react';
+import { ArrowLeft, Lock, Clock, Plus, X, Pencil, Eye, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
+import PostCard from '../components/PostCard';
 
 export default function GroupPage() {
   const { groupId, tab } = useParams();
@@ -15,10 +15,18 @@ export default function GroupPage() {
   
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showModal, setShowModal] = useState(false);
+  
+  // Modal State
   const [modalType, setModalType] = useState<'announcement' | 'event'>('announcement');
   const [modalTitle, setModalTitle] = useState('');
   const [modalContent, setModalContent] = useState('');
+  const [tags, setTags] = useState('');
+  const [eventType, setEventType] = useState<'virtual' | 'offline'>('virtual');
+  const [eventTime, setEventTime] = useState('');
+  const [buttons, setButtons] = useState<{ label: string; url: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [previewMode, setPreviewMode] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -26,28 +34,29 @@ export default function GroupPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch(`/api/group_data?group_id=${groupId}`);
-        if (res.status === 401 || res.status === 403) {
-          setError('Not authorized to view this group');
-          setLoading(false);
-          return;
-        }
-        const json = await res.json();
-        if (json.status === 'success') {
-          setData(json.data);
-          setGroupInfo(json.group);
-        } else {
-          setError(json.message || 'Error fetching group');
-        }
-      } catch (err) {
-        setError('Failed to fetch group data');
-      } finally {
+  const fetchData = async () => {
+    try {
+      const res = await fetch(`/api/group_data?group_id=${groupId}`);
+      if (res.status === 401 || res.status === 403) {
+        setError('Not authorized to view this group');
         setLoading(false);
+        return;
       }
-    };
+      const json = await res.json();
+      if (json.status === 'success') {
+        setData(json.data);
+        setGroupInfo(json.group);
+      } else {
+        setError(json.message || 'Error fetching group');
+      }
+    } catch (err) {
+      setError('Failed to fetch group data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [groupId, navigate]);
 
@@ -82,91 +91,102 @@ export default function GroupPage() {
   const announcements = data.filter(item => item.post_type === 'announcement');
   const events = data.filter(item => item.post_type === 'event');
 
-  const handleAddClick = (type: 'announcement' | 'event') => {
+  const handleAddClick = (rawType: string) => {
+    const type = rawType.endsWith('s') ? rawType.slice(0, -1) as 'announcement' | 'event' : rawType as 'announcement' | 'event';
     if (isMobile) {
       navigate(`/dash/community/${groupId}/create?type=${type}`);
     } else {
       setModalType(type);
-      setShowModal(true);
       setModalTitle('');
       setModalContent('');
+      setTags('');
+      setEventType('virtual');
+      setEventTime('');
+      setButtons([]);
+      setModalError('');
+      setPreviewMode(false);
+      setShowModal(true);
     }
   };
 
-  const handleModalSubmit = (e: React.FormEvent) => {
+  const addButton = () => setButtons([...buttons, { label: '', url: '' }]);
+  const removeButton = (idx: number) => setButtons(buttons.filter((_, i) => i !== idx));
+  const updateButton = (idx: number, field: 'label' | 'url', value: string) => {
+    const updated = [...buttons];
+    updated[idx][field] = value;
+    setButtons(updated);
+  };
+
+  const buildPreviewItem = () => {
+    const tagsArray = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const buttonsObj: Record<string, string> = {};
+    buttons.forEach(b => { if (b.label && b.url) buttonsObj[b.label] = b.url; });
+
+    const ctx: any = {
+      title: modalTitle || 'Untitled',
+      content: modalContent ? btoa(unescape(encodeURIComponent(modalContent))) : '',
+      tags: tagsArray
+    };
+    if (modalType === 'event') {
+      ctx.type = eventType;
+      ctx.time = eventTime || null;
+    }
+
+    return {
+      id: 0,
+      post_type: modalType,
+      context: ctx,
+      extras: Object.keys(buttonsObj).length > 0 ? buttonsObj : null,
+      created_at: new Date().toISOString()
+    };
+  };
+
+  const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Placeholder API Call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowModal(false);
-    }, 1000);
-  };
+    setModalError('');
 
-  const renderPost = (item: any) => {
-    let ctx: any = {};
-    let extras: any = {};
+    const tagsStr = tags;
+    const encodedContent = modalContent ? btoa(unescape(encodeURIComponent(modalContent))) : '';
+    const buttonsObj: Record<string, string> = {};
+    buttons.forEach(b => { if (b.label && b.url) buttonsObj[b.label] = b.url; });
+
     try {
-      ctx = typeof item.context === 'string' ? JSON.parse(item.context) : (item.context || {});
-      extras = typeof item.extras === 'string' ? JSON.parse(item.extras) : (item.extras || {});
-    } catch(e) {}
-    
-    let content = ctx.content || '';
-    if (content) {
-      try {
-        content = atob(content);
-      } catch(e) {
-        // If not base64 encoded, just use as is
+      const res = await fetch('/api/add_post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          group_id: groupId,
+          post_type: modalType,
+          title: modalTitle,
+          content: encodedContent,
+          tags: tagsStr,
+          event_type: modalType === 'event' ? eventType : undefined,
+          event_time: modalType === 'event' ? eventTime : undefined,
+          buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null
+        })
+      });
+      const result = await res.json();
+      if (result.status === 'success') {
+        setShowModal(false);
+        fetchData(); // Refresh the feed
+      } else {
+        setModalError(result.message || 'Failed to create post');
       }
+    } catch (err) {
+      setModalError('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    return (
-      <div key={item.id} className="border-4 border-black p-4 bg-[#f4f4f5] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3">
-        {ctx.title && <h3 className="font-black text-xl uppercase tracking-tighter">{ctx.title}</h3>}
-        
-        {item.post_type === 'event' && (
-          <div className="flex items-center gap-4 text-xs font-bold text-gray-600 uppercase tracking-widest border-2 border-black p-2 bg-white self-start">
-            {ctx.type === 'offline' ? (
-              <span className="flex items-center gap-1 text-orange-500"><MapPin size={14} /> Offline</span>
-            ) : (
-              <span className="flex items-center gap-1 text-emerald-500"><MapPin size={14} /> Virtual</span>
-            )}
-            {ctx.time && <span className="flex items-center gap-1"><CalendarIcon size={14} /> {new Date(ctx.time).toLocaleString()}</span>}
-          </div>
-        )}
-
-        {content && (
-          <div className="prose prose-sm max-w-none prose-headings:font-black prose-headings:uppercase font-bold">
-            <ReactMarkdown>{content}</ReactMarkdown>
-          </div>
-        )}
-
-        {ctx.tags && Array.isArray(ctx.tags) && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {ctx.tags.map((tag: string, i: number) => (
-              <span key={i} className="bg-black text-white text-[10px] font-black uppercase tracking-widest px-2 py-1">#{tag}</span>
-            ))}
-          </div>
-        )}
-
-        {extras && Object.keys(extras).length > 0 && (
-          <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t-2 border-black border-dashed">
-            {Object.entries(extras).map(([label, link], i) => (
-              <a key={i} href={link as string} target="_blank" rel="noreferrer" className="bg-[#3B82F6] text-white px-4 py-2 font-black text-xs uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all border-2 border-black">
-                {label}
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
-    );
   };
+
+  const inputClass = "border-4 border-black p-3 font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all w-full";
 
   return (
-    <div className="flex flex-col w-full min-h-[60vh] relative bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] md:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+    <div className="flex flex-col w-full min-h-[60vh] relative gap-6 md:gap-8">
       
       {/* Top Banner (Header) */}
-      <div className="p-4 md:p-8 border-b-4 border-black flex items-center justify-between gap-4 bg-white">
+      <div className="p-4 md:p-8 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between gap-4 bg-white">
         <div className="flex items-center gap-4 truncate">
           {groupInfo?.logo && (
             <img src={groupInfo.logo} alt="Logo" className="w-12 h-12 md:w-16 md:h-16 border-2 border-black object-cover bg-white shrink-0" />
@@ -186,23 +206,23 @@ export default function GroupPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-white flex flex-col gap-6 relative min-h-[400px]">
+      <div className="flex-1 flex flex-col gap-6 relative min-h-[400px]">
         {activeTab === 'announcements' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-8">
             {announcements.length === 0 ? (
               <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No announcements yet.</div>
             ) : (
-              announcements.map(item => renderPost(item))
+              announcements.map((item, i) => <PostCard key={i} item={item} />)
             )}
           </div>
         )}
 
         {activeTab === 'events' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-8">
             {events.length === 0 ? (
               <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No events yet.</div>
             ) : (
-              events.map(item => renderPost(item))
+              events.map((item, i) => <PostCard key={i} item={item} />)
             )}
           </div>
         )}
@@ -231,25 +251,96 @@ export default function GroupPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-2xl w-full flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between p-4 border-b-4 border-black bg-[#f4f4f5]">
-              <h2 className="font-black uppercase tracking-tighter text-xl">New {modalType}</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="font-black uppercase tracking-tighter text-xl">New {modalType}</h2>
+                <div className="flex gap-0 border-4 border-black">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode(false)}
+                    className={`px-3 py-1 font-black uppercase text-[10px] tracking-widest flex items-center gap-1 transition-colors ${!previewMode ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+                  >
+                    <Pencil size={12} /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode(true)}
+                    className={`px-3 py-1 font-black uppercase text-[10px] tracking-widest flex items-center gap-1 transition-colors border-l-4 border-black ${previewMode ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+                  >
+                    <Eye size={12} /> Preview
+                  </button>
+                </div>
+              </div>
               <button onClick={() => setShowModal(false)} className="hover:rotate-90 transition-transform">
                 <X size={24} />
               </button>
             </div>
+            
             <div className="p-6 overflow-y-auto">
-              <form onSubmit={handleModalSubmit} className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="font-black uppercase tracking-widest text-xs">Title</label>
-                  <input required value={modalTitle} onChange={(e) => setModalTitle(e.target.value)} className="border-4 border-black p-3 font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all" placeholder={`Enter ${modalType} title...`} />
+              {previewMode ? (
+                <div className="flex flex-col gap-4">
+                  <PostCard item={buildPreviewItem()} />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="font-black uppercase tracking-widest text-xs">Content (Markdown)</label>
-                  <textarea required value={modalContent} onChange={(e) => setModalContent(e.target.value)} className="border-4 border-black p-3 font-bold min-h-[200px] resize-y focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all" placeholder="Write your post in Markdown..." />
-                </div>
-                <button type="submit" disabled={isSubmitting} className="bg-[#3B82F6] text-white p-4 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-4 border-black mt-2">
-                  {isSubmitting ? 'Posting...' : 'Post to Group'}
-                </button>
-              </form>
+              ) : (
+                <form onSubmit={handleModalSubmit} className="flex flex-col gap-6">
+                  {modalError && (
+                    <div className="bg-red-500 text-white p-3 font-bold border-4 border-black text-sm">{modalError}</div>
+                  )}
+                  
+                  <div className="flex flex-col gap-2">
+                    <label className="font-black uppercase tracking-widest text-xs">Title *</label>
+                    <input required value={modalTitle} onChange={(e) => setModalTitle(e.target.value)} className={inputClass} placeholder={`Enter ${modalType} title...`} />
+                  </div>
+                  
+                  <div className="flex flex-col gap-1">
+                    <label className="font-black uppercase tracking-widest text-xs">Content *</label>
+                    <textarea required value={modalContent} onChange={(e) => setModalContent(e.target.value)} className={`${inputClass} min-h-[160px] resize-y`} placeholder="Write your post here..." />
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">*bold*, _italic_, ~strike~, `code`</span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="font-black uppercase tracking-widest text-xs">Tags (comma-separated)</label>
+                    <input value={tags} onChange={e => setTags(e.target.value)} className={inputClass} placeholder="e.g. important, deadline, exam" />
+                  </div>
+
+                  {modalType === 'event' && (
+                    <>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-black uppercase tracking-widest text-xs">Event Type *</label>
+                        <select value={eventType} onChange={e => setEventType(e.target.value as any)} className={`${inputClass} cursor-pointer appearance-none`}>
+                          <option value="virtual">Virtual</option>
+                          <option value="offline">Offline</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-black uppercase tracking-widest text-xs">Event Date & Time *</label>
+                        <input required type="datetime-local" value={eventTime} onChange={e => setEventTime(e.target.value)} className={inputClass} />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <label className="font-black uppercase tracking-widest text-xs">Button Links (Optional)</label>
+                      <button type="button" onClick={addButton} className="bg-black text-white p-1.5 hover:-translate-y-0.5 transition-transform">
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                    {buttons.map((btn, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <input value={btn.label} onChange={e => updateButton(i, 'label', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-1 focus:outline-none" placeholder="Label" />
+                        <input value={btn.url} onChange={e => updateButton(i, 'url', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-[2] focus:outline-none" placeholder="https://..." />
+                        <button type="button" onClick={() => removeButton(i)} className="text-red-500 hover:text-red-700 p-1">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button type="submit" disabled={isSubmitting} className="bg-[#3B82F6] text-white p-4 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-4 border-black mt-2">
+                    {isSubmitting ? 'Posting...' : 'Post to Group'}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

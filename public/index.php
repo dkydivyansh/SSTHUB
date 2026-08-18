@@ -115,6 +115,11 @@ if (strpos($request_uri, '/api/group_data') === 0) {
     exit();
 }
 
+if ($request_uri === '/api/add_post') {
+    require_once __DIR__ . '/controller/api/add_post.php';
+    exit();
+}
+
 // Default route - Serve the React application
 $html_file = __DIR__ . '/index.html';
 if (file_exists($html_file)) {
