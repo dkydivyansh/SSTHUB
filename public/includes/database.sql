@@ -104,10 +104,25 @@ CREATE TABLE IF NOT EXISTS community_groups (
 CREATE TABLE IF NOT EXISTS announcements (
     id INT AUTO_INCREMENT PRIMARY KEY,
     groupid VARCHAR(50) NOT NULL,
+    /* 
+     context JSON structure:
+     {
+       "title": "Announcement Title",
+       "content": "base64_encoded_markdown_string",
+       "tags": ["tag1", "tag2"]
+     }
+    */
     context JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NULL,
     pinned BOOLEAN DEFAULT FALSE,
+    /*
+     extras JSON structure (optional buttons):
+     {
+       "button1": "https://example.com",
+       "button2": "https://example2.com"
+     }
+    */
     extras JSON,
     created_by INT NOT NULL,
     FOREIGN KEY (groupid) REFERENCES community_groups(id) ON DELETE CASCADE,
@@ -117,10 +132,26 @@ CREATE TABLE IF NOT EXISTS announcements (
 CREATE TABLE IF NOT EXISTS events (
     id INT AUTO_INCREMENT PRIMARY KEY,
     groupid VARCHAR(50) NOT NULL,
+    /*
+     context JSON structure:
+     {
+       "title": "Event Title",
+       "content": "base64_encoded_markdown_string",
+       "tags": ["tag1", "tag2"],
+       "type": "virtual" | "offline",
+       "time": "YYYY-MM-DD HH:MM:SS"
+     }
+    */
     context JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NULL,
     pinned BOOLEAN DEFAULT FALSE,
+    /*
+     extras JSON structure (optional buttons):
+     {
+       "button1": "https://example.com"
+     }
+    */
     extras JSON,
     created_by INT NOT NULL,
     FOREIGN KEY (groupid) REFERENCES community_groups(id) ON DELETE CASCADE,

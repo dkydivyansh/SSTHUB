@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Users, Compass, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft, Grid } from 'lucide-react';
+import { Home, User, Users, Compass, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
 import { useState } from 'react';
 
 export default function DesktopSidebar() {
@@ -29,6 +29,19 @@ export default function DesktopSidebar() {
     flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
     ${adminTab === tab 
       ? (tab === 'users' ? 'bg-[#3B82F6]' : tab === 'faculty' ? 'bg-red-500' : 'bg-emerald-500') + ' text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1' 
+      : 'bg-white text-black hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+    }
+  `;
+
+  const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
+  const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
+  const groupId = groupMatch ? groupMatch[1] : '';
+  const activeGroupTab = groupMatch && groupMatch[2] ? groupMatch[2] : 'announcements';
+
+  const groupNavItemClass = (tab: string) => `
+    flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
+    ${activeGroupTab === tab 
+      ? 'bg-[#3B82F6] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1' 
       : 'bg-white text-black hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
     }
   `;
@@ -67,6 +80,25 @@ export default function DesktopSidebar() {
             <button onClick={() => navigate('/admindash/groups')} className={`${adminNavItemClass('groups')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
               <Grid size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Groups</span>
+            </button>
+          </>
+        ) : isGroupPage ? (
+          <>
+            <button onClick={() => navigate('/dash/community')} className={`${navItemClass('/dash/community')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
+              <ArrowLeft size={24} className="shrink-0" />
+              <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Back</span>
+            </button>
+            <button onClick={() => navigate(`/dash/community/${groupId}/announcements`)} className={`${groupNavItemClass('announcements')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
+              <Megaphone size={24} className="shrink-0" />
+              <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Announcements</span>
+            </button>
+            <button onClick={() => navigate(`/dash/community/${groupId}/events`)} className={`${groupNavItemClass('events')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
+              <Calendar size={24} className="shrink-0" />
+              <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Events</span>
+            </button>
+            <button onClick={() => navigate(`/dash/community/${groupId}/about`)} className={`${groupNavItemClass('about')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
+              <Info size={24} className="shrink-0" />
+              <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>About</span>
             </button>
           </>
         ) : (

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid } from 'lucide-react';
+import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
 
 export default function MobileBottomNav() {
   const location = useLocation();
@@ -25,6 +25,16 @@ export default function MobileBottomNav() {
     ${adminTab === tab ? (tab === 'users' ? 'text-[#3B82F6]' : tab === 'faculty' ? 'text-red-500' : 'text-emerald-500') : 'text-black hover:text-[#3B82F6]'}
   `;
 
+  const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
+  const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
+  const groupId = groupMatch ? groupMatch[1] : '';
+  const activeTab = groupMatch && groupMatch[2] ? groupMatch[2] : 'announcements';
+
+  const groupNavItemClass = (tab: string) => `
+    flex flex-col items-center justify-center p-2 flex-1 transition-colors
+    ${activeTab === tab ? 'text-[#3B82F6]' : 'text-black hover:text-[#3B82F6]'}
+  `;
+
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t-4 border-black z-50 flex items-center justify-around py-1 px-2 shadow-[0_-4px_0_0_rgba(0,0,0,1)]">
       {isAdminDash ? (
@@ -47,6 +57,28 @@ export default function MobileBottomNav() {
           <button onClick={() => navigate('/admindash/groups')} className={adminNavItemClass('groups')}>
             <Grid size={20} className={adminTab === 'groups' ? 'fill-emerald-500 text-emerald-500' : ''} />
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Groups</span>
+          </button>
+        </>
+      ) : isGroupPage ? (
+        <>
+          <button onClick={() => navigate('/dash/community')} className={navItemClass('/dash/community')}>
+            <ArrowLeft size={20} />
+            <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Back</span>
+          </button>
+          
+          <button onClick={() => navigate(`/dash/community/${groupId}/announcements`)} className={groupNavItemClass('announcements')}>
+            <Megaphone size={20} strokeWidth={activeTab === 'announcements' ? 3 : 2} />
+            <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Announce</span>
+          </button>
+          
+          <button onClick={() => navigate(`/dash/community/${groupId}/events`)} className={groupNavItemClass('events')}>
+            <Calendar size={20} strokeWidth={activeTab === 'events' ? 3 : 2} />
+            <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Events</span>
+          </button>
+          
+          <button onClick={() => navigate(`/dash/community/${groupId}/about`)} className={groupNavItemClass('about')}>
+            <Info size={20} strokeWidth={activeTab === 'about' ? 3 : 2} />
+            <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">About</span>
           </button>
         </>
       ) : (
