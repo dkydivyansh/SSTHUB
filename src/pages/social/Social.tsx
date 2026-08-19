@@ -104,7 +104,11 @@ export default function Social() {
 
   // 1s polling for current chat messages
   useEffect(() => {
-    if (!activeChat) return;
+    if (!activeChat) {
+      document.body.classList.remove('chat-open');
+      return;
+    }
+    document.body.classList.add('chat-open');
     fetchMessages();
 
     const interval = setInterval(() => {
@@ -113,7 +117,10 @@ export default function Social() {
       }
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.body.classList.remove('chat-open');
+    };
   }, [activeChat?.conversation_id]);
 
   // Auto-scroll to bottom when new messages arrive
@@ -806,9 +813,8 @@ export default function Social() {
         </div>
       </div>
 
-      {/* Right Column - Chat Area */}
       <div 
-        className={`bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-col min-h-[400px] ${activeChat ? 'fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-[60] md:static md:flex-1 flex border-0 md:border-4 shadow-none md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'hidden md:flex flex-1'}`}
+        className={`bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-col min-h-[400px] ${activeChat ? 'fixed top-0 left-0 w-full h-[100dvh] md:inset-0 md:h-full z-[60] md:static md:flex-1 flex border-0 md:border-4 shadow-none md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'hidden md:flex flex-1'}`}
         onClick={closeAllMenus}
       >
         {activeChat ? (

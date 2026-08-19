@@ -6,7 +6,7 @@ import { useGroupUnreadCounts } from '../../hooks/useGroupUnreadCounts';
 export default function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { unreadCommunity } = useUnreadCounts();
+  const { unreadCommunity, unreadSocial } = useUnreadCounts();
 
   const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
   const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
@@ -41,7 +41,7 @@ export default function MobileBottomNav() {
   `;
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t-4 border-black z-50 flex items-center justify-around py-1 px-2 shadow-[0_-4px_0_0_rgba(0,0,0,1)]">
+    <nav id="mobile-bottom-nav" className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t-4 border-black z-50 flex items-center justify-around py-1 px-2 shadow-[0_-4px_0_0_rgba(0,0,0,1)]">
       {isAdminDash ? (
         <>
           <button onClick={() => navigate('/dash')} className={navItemClass('/dash')}>
@@ -120,7 +120,14 @@ export default function MobileBottomNav() {
           </Link>
           
           <Link to="/dash/social" className={navItemClass('/dash/social')}>
-            <Users size={20} className={isActive('/dash/social') ? 'fill-[#3B82F6]' : ''} />
+            <div className="relative flex flex-col items-center">
+              <Users size={20} className={isActive('/dash/social') ? 'fill-[#3B82F6]' : ''} />
+              {unreadSocial > 0 && (
+                <div className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-full border border-black">
+                  {unreadSocial > 99 ? '99+' : unreadSocial}
+                </div>
+              )}
+            </div>
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Social</span>
           </Link>
 

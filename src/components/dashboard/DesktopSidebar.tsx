@@ -8,7 +8,7 @@ export default function DesktopSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const { unreadCommunity } = useUnreadCounts();
+  const { unreadCommunity, unreadSocial } = useUnreadCounts();
 
   const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
   const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
@@ -137,8 +137,15 @@ export default function DesktopSidebar() {
               </div>
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Community</span>
             </Link>
-            <Link to="/dash/social" className={`${navItemClass('/dash/social')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
-              <Users size={24} className="shrink-0" />
+            <Link to="/dash/social" className={`${navItemClass('/dash/social')} ${isCollapsed ? 'justify-center' : 'justify-start'} relative`}>
+              <div className="relative">
+                <Users size={24} className="shrink-0" />
+                {unreadSocial > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-black">
+                    {unreadSocial > 99 ? '99+' : unreadSocial}
+                  </div>
+                )}
+              </div>
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Social</span>
             </Link>
             <Link to="/dash/profile" className={`${navItemClass('/dash/profile')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>

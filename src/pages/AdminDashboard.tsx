@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, Navigate, useLocation } from 'react-router-dom';
-import { ShieldAlert, Users as UsersIcon, UserCog, ArrowLeft, Search, Filter, ShieldOff, CheckCircle, Clock, Info, Plus, Trash2, Edit } from 'lucide-react';
+import { ShieldAlert, Users as UsersIcon, UserCog, ArrowLeft, Search, Filter, ShieldOff, CheckCircle, Clock, Info, Plus, Trash2, Edit, X } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { userData } = useOutletContext<any>();
@@ -19,6 +19,12 @@ export default function AdminDashboard() {
   const [disabledMsgPrompt, setDisabledMsgPrompt] = useState<{userId: number, name: string} | null>(null);
   const [disabledMsg, setDisabledMsg] = useState('');
   const [viewDisabledMsg, setViewDisabledMsg] = useState<{name: string, msg: string} | null>(null);
+
+  // -- FACULTY STATE --
+  const [showAddFaculty, setShowAddFaculty] = useState(false);
+  const [addFacultySearchQuery, setAddFacultySearchQuery] = useState('');
+  const [addFacultySearchResults, setAddFacultySearchResults] = useState<any[]>([]);
+  const [searchingAddFaculty, setSearchingAddFaculty] = useState(false);
 
   // -- GROUPS STATE --
   const [groups, setGroups] = useState<any[]>([]);
@@ -99,6 +105,29 @@ export default function AdminDashboard() {
     return () => clearTimeout(delay);
   }, [adminSearchQuery, manageAdminsGroup]);
 
+  useEffect(() => {
+    if (!addFacultySearchQuery || !showAddFaculty) {
+      setAddFacultySearchResults([]);
+      return;
+    }
+    const delay = setTimeout(async () => {
+      setSearchingAddFaculty(true);
+      try {
+        // Only search members since we want to add them as faculty
+        const res = await fetch(`/api/admin/users?search=${encodeURIComponent(addFacultySearchQuery)}&type=member`);
+        const json = await res.json();
+        if (json.status === 'success') {
+          setAddFacultySearchResults(json.data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSearchingAddFaculty(false);
+      }
+    }, 300);
+    return () => clearTimeout(delay);
+  }, [addFacultySearchQuery, showAddFaculty]);
+
   if (userData?.type !== 'admin') {
     return <Navigate to="/dash" replace />;
   }
@@ -121,6 +150,28 @@ export default function AdminDashboard() {
         fetchUsers();
       } else {
         alert(json.message || 'Failed to update user status');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const changeRole = async (userId: number, newRole: string) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_role',
+          target_user_id: userId,
+          role: newRole
+        })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        fetchUsers();
+      } else {
+        alert(json.message || 'Failed to update user role');
       }
     } catch (err) {
       console.error(err);
@@ -337,6 +388,14 @@ export default function AdminDashboard() {
                   <option value="admin">Admin</option>
                 </select>
               )}
+              {activeTab === 'faculty' && (
+                <button 
+                  onClick={() => setShowAddFaculty(true)}
+                  className="flex items-center gap-2 bg-[#3B82F6] text-white border-4 border-black py-3 px-6 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all whitespace-nowrap"
+                >
+                  <Plus size={18} /> Add Faculty
+                </button>
+              )}
             </div>
           </div>
 
@@ -400,6 +459,24 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-wrap items-center justify-center gap-2">
+                          {u.type === 'member' && (
+                            <button 
+                              onClick={() => changeRole(u.userid, 'faculty')}
+                              className="bg-blue-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
+                              title="Make Faculty"
+                            >
+                              <UserCog size={16} />
+                            </button>
+                          )}
+                          {u.type === 'faculty' && (
+                            <button 
+                              onClick={() => changeRole(u.userid, 'member')}
+                              className="bg-gray-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
+                              title="Remove Faculty Role"
+                            >
+                              <UserCog size={16} />
+                            </button>
+                          )}
                           {u.status !== 'active' && (
                             <button 
                               onClick={() => changeStatus(u.userid, 'active')}
@@ -581,6 +658,83 @@ export default function AdminDashboard() {
             <div className="flex gap-4 mt-4">
               <button onClick={() => setManageAdminsGroup(null)} className="flex-1 bg-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Cancel</button>
               <button onClick={handleUpdateAdmins} className="flex-1 bg-blue-500 text-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Faculty Modal */}
+      {showAddFaculty && (
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-2xl font-black uppercase tracking-tighter text-[#3B82F6]">Add Faculty</h3>
+              <button onClick={() => { setShowAddFaculty(false); setAddFacultySearchQuery(''); setAddFacultySearchResults([]); }} className="hover:text-red-500 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <p className="font-bold text-sm text-gray-600">Search for a student/member to promote them to Faculty status.</p>
+            
+            <div className="flex flex-col gap-2 relative">
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Search user by name, roll no, or ID..." 
+                  value={addFacultySearchQuery} 
+                  onChange={e => setAddFacultySearchQuery(e.target.value)} 
+                  className="flex-1 border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" 
+                />
+                <button 
+                  onClick={() => {
+                    const id = parseInt(addFacultySearchQuery);
+                    if (!isNaN(id)) {
+                      changeRole(id, 'faculty');
+                      setShowAddFaculty(false);
+                      setAddFacultySearchQuery('');
+                      setAddFacultySearchResults([]);
+                    }
+                  }}
+                  className="bg-black text-white border-4 border-black px-4 font-black uppercase hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all whitespace-nowrap"
+                  title="Add directly by User ID"
+                >
+                  Add ID
+                </button>
+              </div>
+              
+              {/* Search Results Dropdown */}
+              {(addFacultySearchResults.length > 0 || searchingAddFaculty) && (
+                <div className="absolute top-full mt-2 left-0 right-0 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-48 overflow-y-auto z-10 flex flex-col">
+                  {searchingAddFaculty ? (
+                    <div className="p-3 font-bold text-center">Searching...</div>
+                  ) : (
+                    addFacultySearchResults.map(u => (
+                      <button 
+                        key={u.userid}
+                        onClick={() => {
+                          changeRole(u.userid, 'faculty');
+                          setShowAddFaculty(false);
+                          setAddFacultySearchQuery('');
+                          setAddFacultySearchResults([]);
+                        }}
+                        className="flex justify-between items-center p-3 border-b-2 border-black hover:bg-blue-100 transition-colors text-left"
+                      >
+                        <div>
+                          <div className="font-black uppercase">{u.name}</div>
+                          <div className="text-xs font-bold text-gray-500">{u.rollno || u.email}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-[10px] font-black bg-black text-white px-2 py-1">ID: {u.userid}</div>
+                          <Plus size={16} className="text-blue-500" />
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4">
+              <button onClick={() => { setShowAddFaculty(false); setAddFacultySearchQuery(''); setAddFacultySearchResults([]); }} className="w-full bg-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Cancel</button>
             </div>
           </div>
         </div>

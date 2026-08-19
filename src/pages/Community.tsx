@@ -223,9 +223,6 @@ export default function Community() {
                   )}
                   <div className="flex-1 overflow-hidden">
                     <h3 className="text-lg md:text-xl font-black uppercase leading-tight truncate">{g.name}</h3>
-                    <span className={`px-2 py-1 text-[10px] md:text-[10px] font-black uppercase tracking-widest border-2 border-black mt-1 inline-block ${g.type === 'private' ? 'bg-purple-500 text-white' : 'bg-emerald-300 text-black'}`}>
-                      {g.type}
-                    </span>
                   </div>
                 </div>
                 {g.description && <p className="font-bold text-sm text-gray-700 line-clamp-2 md:line-clamp-3">{g.description}</p>}

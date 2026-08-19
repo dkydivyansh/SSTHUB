@@ -49,7 +49,7 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-[#FFF5E1] flex font-sans">
       <DesktopSidebar />
       
-      <main className="flex-1 flex flex-col relative pb-16 lg:pb-0 overflow-x-hidden">
+      <main id="dashboard-main" className="flex-1 flex flex-col relative pb-16 lg:pb-0 overflow-x-hidden">
 
         <div className="p-4 sm:p-8 lg:p-12 w-full max-w-7xl mx-auto flex-1 overflow-hidden">
           <Outlet context={{ userData }} />

@@ -43,3 +43,11 @@
   scrollbar-width: auto;
   scrollbar-color: #3B82F6 #FFF5E1;
 }
+
+body.chat-open #mobile-bottom-nav {
+  display: none !important;
+}
+
+body.chat-open #dashboard-main {
+  padding-bottom: 0 !important;
+}

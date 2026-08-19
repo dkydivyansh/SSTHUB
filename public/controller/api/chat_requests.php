@@ -27,6 +27,13 @@ if ($status === 'invalid_session') {
 $request_method = $_SERVER['REQUEST_METHOD'];
 $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
+// Auto-remove requests older than 30 days
+try {
+    $conn->exec("DELETE FROM chat_requests WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+} catch (PDOException $e) {
+    // Ignore error
+}
+
 // POST /api/chat_requests - Send a new request
 if ($request_uri === '/api/chat_requests' && $request_method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);

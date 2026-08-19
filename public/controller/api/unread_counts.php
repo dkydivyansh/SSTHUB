@@ -38,12 +38,22 @@ try {
 
     $total_community = $unread_announcements + $unread_events;
 
-    // Optional: Could also return social unread counts if desired in future
-    
+    // Get total unread social messages
+    $stmt = $conn->prepare("
+        SELECT COALESCE(SUM(
+            (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = p.conversation_id AND m.sender_id != p.user_id AND m.id > COALESCE(p.last_seen_message_id, 0))
+        ), 0) as total_unread_social
+        FROM participants p
+        WHERE p.user_id = ? AND p.is_archived = 0
+    ");
+    $stmt->execute([$user_id]);
+    $total_social = (int)$stmt->fetchColumn();
+
     echo json_encode([
         'status' => 'success', 
         'data' => [
-            'community' => $total_community
+            'community' => $total_community,
+            'social' => $total_social
         ]
     ]);
 } catch (Exception $e) {
