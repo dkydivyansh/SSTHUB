@@ -92,13 +92,13 @@ try {
     $offset_val = (int)$offset;
 
     if ($post_type === 'announcement') {
-        $sql = $sql_announcements . " ORDER BY created_at DESC LIMIT {$limit_val} OFFSET {$offset_val}";
+        $sql = $sql_announcements . " ORDER BY pinned DESC, created_at DESC LIMIT {$limit_val} OFFSET {$offset_val}";
         $params = [$group_id, $searchParam, $searchParam, $searchParam];
     } else if ($post_type === 'event') {
-        $sql = $sql_events . " ORDER BY created_at DESC LIMIT {$limit_val} OFFSET {$offset_val}";
+        $sql = $sql_events . " ORDER BY pinned DESC, created_at DESC LIMIT {$limit_val} OFFSET {$offset_val}";
         $params = [$group_id, $searchParam, $searchParam, $searchParam, $searchParam];
     } else {
-        $sql = "SELECT * FROM (($sql_announcements) UNION ALL ($sql_events)) AS combined ORDER BY created_at DESC LIMIT {$limit_val} OFFSET {$offset_val}";
+        $sql = "SELECT * FROM (($sql_announcements) UNION ALL ($sql_events)) AS combined ORDER BY pinned DESC, created_at DESC LIMIT {$limit_val} OFFSET {$offset_val}";
         $params = [
             $group_id, $searchParam, $searchParam, $searchParam,
             $group_id, $searchParam, $searchParam, $searchParam, $searchParam

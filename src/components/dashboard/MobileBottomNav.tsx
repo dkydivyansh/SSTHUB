@@ -1,9 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
+import { useUnreadCounts } from '../../hooks/useUnreadCounts';
 
 export default function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { unreadCommunity } = useUnreadCounts();
 
   const isActive = (path: string) => {
     if (path === '/dash') return location.pathname === '/dash';
@@ -89,7 +91,14 @@ export default function MobileBottomNav() {
           </Link>
           
           <Link to="/dash/community" className={navItemClass('/dash/community')}>
-            <Compass size={20} strokeWidth={isActive('/dash/community') ? 3 : 2} />
+            <div className="relative flex flex-col items-center">
+              <Compass size={20} strokeWidth={isActive('/dash/community') ? 3 : 2} />
+              {unreadCommunity > 0 && (
+                <div className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-full border border-black">
+                  {unreadCommunity > 99 ? '99+' : unreadCommunity}
+                </div>
+              )}
+            </div>
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Community</span>
           </Link>
           

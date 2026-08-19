@@ -29,7 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if ($action === 'joined_groups') {
         $stmt = $conn->prepare("
-            SELECT cg.id, cg.name, cg.description, cg.logo, cg.type, gm.joined_at
+            SELECT cg.id, cg.name, cg.description, cg.logo, cg.type, gm.joined_at,
+            (
+                (SELECT COUNT(*) FROM announcements a WHERE a.groupid = cg.id AND a.id > gm.last_read_announcements) +
+                (SELECT COUNT(*) FROM events e WHERE e.groupid = cg.id AND e.id > gm.last_read_events)
+            ) as total_unread
             FROM community_groups cg
             JOIN group_members gm ON cg.id = gm.group_id
             WHERE gm.user_id = ?

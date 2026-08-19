@@ -56,6 +56,29 @@ export default function GroupSearch() {
     }
   };
 
+  const handleTogglePin = async (postId: number, postType: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch('/api/pin_post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId, post_id: postId, post_type: postType, pinned: !currentStatus })
+      });
+      const result = await res.json();
+      if (result.status === 'success') {
+        setResults(prev => prev.map(p => {
+          if (p.id === postId && p.post_type === postType) {
+            return { ...p, pinned: !currentStatus };
+          }
+          return p;
+        }));
+      } else {
+        throw new Error(result.message || 'Failed to toggle pin');
+      }
+    } catch (err: any) {
+      throw new Error(err.message || 'Network error while pinning. Please try again.');
+    }
+  };
+
   // Debounced search on query change
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -128,7 +151,7 @@ export default function GroupSearch() {
         )}
 
         {results.map((item, i) => (
-          <PostCard key={`${item.post_type}-${item.id}-${i}`} item={item} isAdmin={location.state?.isAdmin} onDelete={handleDeletePost} />
+          <PostCard key={`${item.post_type}-${item.id}-${i}`} item={item} isAdmin={location.state?.isAdmin} onDelete={handleDeletePost} onPin={handleTogglePin} />
         ))}
 
         {/* Sentinel for Intersection Observer */}

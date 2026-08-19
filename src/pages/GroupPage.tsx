@@ -287,6 +287,23 @@ export default function GroupPage() {
       throw new Error(err.message || 'Network error while deleting. Please try again.');
     }
   };
+  const handleTogglePin = async (postId: number, postType: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch('/api/pin_post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId, post_id: postId, post_type: postType, pinned: !currentStatus })
+      });
+      const result = await res.json();
+      if (result.status === 'success') {
+        fetchData(); // Refresh the feed
+      } else {
+        throw new Error(result.message || 'Failed to toggle pin');
+      }
+    } catch (err: any) {
+      throw new Error(err.message || 'Network error while pinning. Please try again.');
+    }
+  };
 
   const inputClass = "border-4 border-black p-3 font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all w-full";
 
@@ -363,7 +380,7 @@ export default function GroupPage() {
               <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No results found.</div>
             )}
             {searchResults.map((item, i) => (
-              <PostCard key={`${item.post_type}-${item.id}-${i}`} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} />
+              <PostCard key={`${item.post_type}-${item.id}-${i}`} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} onPin={handleTogglePin} />
             ))}
             {searchHasMore && (
               <button
@@ -383,7 +400,7 @@ export default function GroupPage() {
             {announcements.length === 0 ? (
               <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No announcements yet.</div>
             ) : (
-              announcements.map((item, i) => <PostCard key={i} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} />)
+              announcements.map((item, i) => <PostCard key={i} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} onPin={handleTogglePin} />)
             )}
           </div>
         )}
@@ -393,7 +410,7 @@ export default function GroupPage() {
             {events.length === 0 ? (
               <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No events yet.</div>
             ) : (
-              events.map((item, i) => <PostCard key={i} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} />)
+              events.map((item, i) => <PostCard key={i} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} onPin={handleTogglePin} />)
             )}
           </div>
         )}

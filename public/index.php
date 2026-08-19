@@ -130,6 +130,26 @@ if ($request_uri === '/api/delete_post') {
     exit();
 }
 
+if ($request_uri === '/api/pin_post') {
+    require_once __DIR__ . '/controller/api/pin_post.php';
+    exit();
+}
+
+if ($request_uri === '/api/mark_group_read') {
+    require_once __DIR__ . '/controller/api/mark_group_read.php';
+    exit();
+}
+
+if ($request_uri === '/api/unread_counts') {
+    require_once __DIR__ . '/controller/api/unread_counts.php';
+    exit();
+}
+
+if ($request_uri === '/api/group_unread_counts') {
+    require_once __DIR__ . '/controller/api/group_unread_counts.php';
+    exit();
+}
+
 if (strpos($request_uri, '/api/search_posts') === 0) {
     require_once __DIR__ . '/controller/api/search_posts.php';
     exit();

@@ -1,11 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, User, Users, Compass, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
 import { useState } from 'react';
+import { useUnreadCounts } from '../../hooks/useUnreadCounts';
 
 export default function DesktopSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const { unreadCommunity } = useUnreadCounts();
 
   const isActive = (path: string) => {
     if (path === '/dash') return location.pathname === '/dash';
@@ -107,8 +109,15 @@ export default function DesktopSidebar() {
               <Home size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Dashboard</span>
             </Link>
-            <Link to="/dash/community" className={`${navItemClass('/dash/community')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
-              <Compass size={24} className="shrink-0" />
+            <Link to="/dash/community" className={`${navItemClass('/dash/community')} ${isCollapsed ? 'justify-center' : 'justify-start'} relative`}>
+              <div className="relative">
+                <Compass size={24} className="shrink-0" />
+                {unreadCommunity > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-black">
+                    {unreadCommunity > 99 ? '99+' : unreadCommunity}
+                  </div>
+                )}
+              </div>
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Community</span>
             </Link>
             <Link to="/dash/social" className={`${navItemClass('/dash/social')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>

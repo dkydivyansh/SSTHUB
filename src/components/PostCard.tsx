@@ -1,4 +1,5 @@
-import { Calendar as CalendarIcon, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar as CalendarIcon, MapPin, Pencil, Trash2, Pin, PinOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface PostCardProps {
@@ -13,6 +14,7 @@ interface PostCardProps {
   };
   isAdmin?: boolean;
   onDelete?: (id: number, type: string) => void;
+  onPin?: (id: number, type: string, currentStatus: boolean) => void;
 }
 
 const escapeHTML = (str: string) => {
@@ -65,11 +67,12 @@ function timeAgo(dateString: string) {
   return 'Just now';
 }
 
-export default function PostCard({ item, isAdmin, onDelete }: PostCardProps) {
+export default function PostCard({ item, isAdmin, onDelete, onPin }: PostCardProps) {
   const navigate = useNavigate();
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [isPinning, setIsPinning] = useState(false);
 
   let ctx: any = {};
   let extras: any = {};
@@ -89,8 +92,6 @@ export default function PostCard({ item, isAdmin, onDelete }: PostCardProps) {
   }
 
   const handleEdit = () => {
-    // Navigate even if groupid is somehow missing, try extracting from URL if possible?
-    // Actually, groupid is now available from backend, but fallback just in case
     const pathGroupId = item.groupid || window.location.pathname.split('/')[3]; 
     if (pathGroupId) {
       navigate(`/dash/community/${pathGroupId}/create?type=${item.post_type}`, {
@@ -114,8 +115,19 @@ export default function PostCard({ item, isAdmin, onDelete }: PostCardProps) {
     }
   };
 
+  const handleTogglePin = async () => {
+    if (onPin && item.id) {
+      setIsPinning(true);
+      try {
+        await onPin(item.id, item.post_type, !!item.pinned);
+      } finally {
+        setIsPinning(false);
+      }
+    }
+  };
+
   return (
-    <div className="border-4 border-black bg-[#f4f4f5] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col w-full relative">
+    <div className={`border-4 ${item.pinned ? 'border-yellow-400' : 'border-black'} bg-[#f4f4f5] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col w-full relative`}>
       {/* Custom Confirmation Modal */}
       {showConfirm && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-white/90 backdrop-blur-sm border-b-4 border-black">
@@ -147,25 +159,36 @@ export default function PostCard({ item, isAdmin, onDelete }: PostCardProps) {
       )}
 
       {(ctx.title || item.created_at) && (
-        <div className="bg-black text-white p-3 px-4 flex flex-row items-center justify-between gap-2 md:gap-4 relative">
+        <div className={`text-white p-3 px-4 flex flex-row items-center justify-between gap-2 md:gap-4 relative ${item.pinned ? 'bg-yellow-400 text-black' : 'bg-black'}`}>
           <div className="flex flex-col md:flex-row md:items-center gap-2 overflow-hidden w-full">
+            {item.pinned ? (
+              <Pin size={16} className="shrink-0 fill-current" />
+            ) : null}
             <h3 className="font-black text-xl uppercase tracking-tighter truncate leading-none md:leading-normal shrink max-w-full">
               {ctx.title || 'Untitled'}
             </h3>
             {item.created_at && (
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest shrink-0 whitespace-nowrap hidden md:inline">
+              <span className={`text-[10px] font-bold uppercase tracking-widest shrink-0 whitespace-nowrap hidden md:inline ${item.pinned ? 'text-black/60' : 'text-gray-400'}`}>
                 {timeAgo(item.created_at)}
               </span>
             )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {item.created_at && (
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest shrink-0 whitespace-nowrap md:hidden">
+              <span className={`text-[10px] font-bold uppercase tracking-widest shrink-0 whitespace-nowrap md:hidden ${item.pinned ? 'text-black/60' : 'text-gray-400'}`}>
                 {timeAgo(item.created_at)}
               </span>
             )}
             {isAdmin && (
               <div className="flex items-center gap-3 bg-white text-black px-2 py-1 border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(255,255,255,0.5)]">
+                <button 
+                  onClick={handleTogglePin} 
+                  disabled={isPinning}
+                  className={`hover:text-yellow-500 transition-colors ${isPinning ? 'opacity-50' : ''}`} 
+                  title={item.pinned ? 'Unpin' : 'Pin'}
+                >
+                  {item.pinned ? <PinOff size={16} strokeWidth={3} /> : <Pin size={16} strokeWidth={3} />}
+                </button>
                 <button onClick={handleEdit} className="hover:text-blue-600 transition-colors" title="Edit">
                   <Pencil size={16} strokeWidth={3} />
                 </button>

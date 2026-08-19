@@ -206,8 +206,13 @@ export default function Community() {
               <button 
                 key={g.id} 
                 onClick={() => navigate(`/dash/community/${g.id}`)}
-                className="bg-white border-4 border-black p-4 md:p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 transition-all flex flex-col gap-3 md:gap-4 text-left w-full"
+                className="bg-white border-4 border-black p-4 md:p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 transition-all flex flex-col gap-3 md:gap-4 text-left w-full relative"
               >
+                {g.total_unread > 0 && (
+                  <div className="absolute -top-3 -right-3 bg-red-500 text-white text-xs md:text-sm font-black w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full border-4 border-black z-10 animate-bounce">
+                    {g.total_unread > 99 ? '99+' : g.total_unread}
+                  </div>
+                )}
                 <div className="flex items-center gap-4 w-full">
                   {g.logo ? (
                     <img src={g.logo} alt="Logo" className="w-14 h-14 md:w-16 md:h-16 border-4 border-black object-cover bg-white shrink-0" />

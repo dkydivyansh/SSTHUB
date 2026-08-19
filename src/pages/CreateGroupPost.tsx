@@ -163,7 +163,7 @@ export default function CreateGroupPost() {
         >
           <ArrowLeft size={16} /> Back
         </button>
-        <h1 className="font-black uppercase tracking-tighter text-lg">New {type}</h1>
+        <h1 className="font-black uppercase tracking-tighter text-lg">{isEdit ? 'Update' : 'New'} {type}</h1>
         <div className="w-16" />
       </div>
 

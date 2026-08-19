@@ -38,13 +38,26 @@ if (empty($group_id)) {
 try {
     // Check membership and fetch group details
     $stmt = $conn->prepare("
-        SELECT g.name, g.description, g.logo, m.joined_at 
+        SELECT g.name, g.description, g.logo, m.joined_at, m.last_read_announcements, m.last_read_events
         FROM community_groups g
         JOIN group_members m ON g.id = m.group_id
         WHERE g.id = ? AND m.user_id = ?
     ");
     $stmt->execute([$group_id, $user_id]);
     $group_info = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($group_info) {
+        $stmt_ann = $conn->prepare("SELECT COUNT(*) FROM announcements WHERE groupid = ? AND id > ?");
+        $stmt_ann->execute([$group_id, $group_info['last_read_announcements']]);
+        $group_info['unread_announcements'] = (int)$stmt_ann->fetchColumn();
+
+        $stmt_ev = $conn->prepare("SELECT COUNT(*) FROM events WHERE groupid = ? AND id > ?");
+        $stmt_ev->execute([$group_id, $group_info['last_read_events']]);
+        $group_info['unread_events'] = (int)$stmt_ev->fetchColumn();
+
+        unset($group_info['last_read_announcements']);
+        unset($group_info['last_read_events']);
+    }
     
     if (!$group_info) {
         http_response_code(403);
@@ -67,14 +80,14 @@ try {
     
     $data = [];
     if ($type === 'announcements') {
-        $stmt = $conn->prepare("SELECT id, groupid, 'announcement' as post_type, context, created_at, pinned, extras, created_by FROM announcements WHERE groupid = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        $stmt = $conn->prepare("SELECT id, groupid, 'announcement' as post_type, context, created_at, pinned, extras, created_by FROM announcements WHERE groupid = ? ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?");
         $stmt->bindValue(1, $group_id, PDO::PARAM_STR);
         $stmt->bindValue(2, $limit, PDO::PARAM_INT);
         $stmt->bindValue(3, $offset, PDO::PARAM_INT);
         $stmt->execute();
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } elseif ($type === 'events') {
-        $stmt = $conn->prepare("SELECT id, groupid, 'event' as post_type, context, created_at, pinned, extras, created_by FROM events WHERE groupid = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        $stmt = $conn->prepare("SELECT id, groupid, 'event' as post_type, context, created_at, pinned, extras, created_by FROM events WHERE groupid = ? ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?");
         $stmt->bindValue(1, $group_id, PDO::PARAM_STR);
         $stmt->bindValue(2, $limit, PDO::PARAM_INT);
         $stmt->bindValue(3, $offset, PDO::PARAM_INT);
@@ -85,7 +98,7 @@ try {
             (SELECT id, groupid, 'announcement' as post_type, context, created_at, pinned, extras, created_by FROM announcements WHERE groupid = ?)
             UNION ALL
             (SELECT id, groupid, 'event' as post_type, context, created_at, pinned, extras, created_by FROM events WHERE groupid = ?)
-            ORDER BY created_at DESC LIMIT ? OFFSET ?
+            ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?
         ";
         $stmt = $conn->prepare($sql);
         $stmt->bindValue(1, $group_id, PDO::PARAM_STR);
