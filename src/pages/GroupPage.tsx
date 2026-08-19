@@ -174,28 +174,50 @@ export default function GroupPage() {
     }
   };
 
-  const handleCopyInvite = () => {
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  const handleCopyInvite = async () => {
     if (!inviteCode) return;
     const url = `${window.location.origin}/dash/community?invite=${inviteCode}`;
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(url).then(() => {
-        showToast('Invite link copied!');
-      }).catch(() => {
-        showToast('Failed to copy invite link', 'error');
-      });
-    } else {
-      const textArea = document.createElement("textarea");
-      textArea.value = url;
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
+    
+    // Try Web Share API for mobile first
+    if (navigator.share && window.innerWidth < 768) {
       try {
-        document.execCommand('copy');
-        showToast('Invite link copied!');
+        await navigator.share({
+          title: 'Join Private Group',
+          text: 'Here is the invite link to join our private group!',
+          url: url
+        });
+        return; // Success, user shared it
       } catch (err) {
-        showToast('Failed to copy link', 'error');
+        console.error('Share failed, falling back to copy', err);
       }
-      document.body.removeChild(textArea);
+    }
+
+    const showCopiedFeedback = () => {
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 3000);
+    };
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        showCopiedFeedback();
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+        showCopiedFeedback();
+      }
+    } catch (err) {
+      alert('Failed to copy link');
     }
   };
 
@@ -641,9 +663,9 @@ export default function GroupPage() {
                       />
                       <button 
                         onClick={handleCopyInvite}
-                        className="bg-emerald-500 text-white border-2 border-black px-6 py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all shrink-0"
+                        className={`${inviteCopied ? 'bg-black text-white' : 'bg-emerald-500 text-white'} border-2 border-black px-6 py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all shrink-0 flex items-center justify-center gap-2`}
                       >
-                        Copy Link
+                        {inviteCopied ? <><Check size={18} /> Copied!</> : 'Copy Link'}
                       </button>
                     </div>
                     <div className="flex gap-4">
