@@ -151,6 +151,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'get_invite') {
+        $stmt = $conn->prepare("SELECT code FROM group_invites WHERE groupid = ? AND is_active = TRUE");
+        $stmt->execute([$group_id]);
+        $invite = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        echo json_encode(['status' => 'success', 'invite_code' => $invite ? $invite['code'] : null]);
+        exit();
+    }
+
+    if ($action === 'create_invite' || $action === 'reset_invite') {
+        // Generate a 12-char alphanumeric code
+        $code = bin2hex(random_bytes(6));
+        try {
+            $stmt = $conn->prepare("INSERT INTO group_invites (groupid, code, is_active) VALUES (?, ?, TRUE) ON DUPLICATE KEY UPDATE code = ?, is_active = TRUE");
+            $stmt->execute([$group_id, $code, $code]);
+            echo json_encode(['status' => 'success', 'message' => 'Invite link generated', 'invite_code' => $code]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Failed to generate invite', 'error' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    if ($action === 'delete_invite') {
+        try {
+            $stmt = $conn->prepare("UPDATE group_invites SET is_active = FALSE WHERE groupid = ?");
+            $stmt->execute([$group_id]);
+            echo json_encode(['status' => 'success', 'message' => 'Invite link deleted']);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Failed to delete invite']);
+        }
+        exit();
+    }
+
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
     exit();

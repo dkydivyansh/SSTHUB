@@ -72,6 +72,9 @@ export default function Community() {
     };
   }, [fetchJoinedGroups]);
 
+  const inviteCode = searchParams.get('invite');
+  const [activeInviteCode, setActiveInviteCode] = useState<string | null>(null);
+
   useEffect(() => {
     if (viewId) {
       setLoadingView(true);
@@ -92,11 +95,30 @@ export default function Community() {
         })
         .catch(() => setViewGroupError('Error fetching group details.'))
         .finally(() => setLoadingView(false));
+    } else if (inviteCode) {
+      setLoadingView(true);
+      setViewGroupError(null);
+      fetch(`/api/community?action=resolve_invite&code=${inviteCode}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.status === 'success' && json.data) {
+            setViewGroup(json.data);
+            setActiveInviteCode(inviteCode);
+            // Remove invite from URL
+            searchParams.delete('invite');
+            setSearchParams(searchParams, { replace: true });
+          } else {
+            setViewGroupError(json.message || 'Invalid invite link.');
+          }
+        })
+        .catch(() => setViewGroupError('Error resolving invite.'))
+        .finally(() => setLoadingView(false));
     } else {
       setViewGroup(null);
       setViewGroupError(null);
+      setActiveInviteCode(null);
     }
-  }, [viewId]);
+  }, [viewId, inviteCode, searchParams, setSearchParams]);
 
   // Debounced Search
   useEffect(() => {
@@ -126,13 +148,14 @@ export default function Community() {
       const res = await fetch('/api/community', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'join_group', group_id: groupId })
+        body: JSON.stringify({ action: 'join_group', group_id: groupId, invite_code: activeInviteCode })
       });
       const json = await res.json();
       if (json.status === 'success') {
         fetchJoinedGroups();
         setShowDiscover(false);
         setSearchQuery('');
+        setActiveInviteCode(null);
         showToast('Successfully joined group!', 'info');
         if (viewGroup && viewGroup.id === groupId) {
           setViewGroup({...viewGroup, is_member: true});

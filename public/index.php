@@ -22,6 +22,11 @@ if ($request_uri === '/api/profile') {
     exit();
 }
 
+if ($request_uri === '/api/migrate') {
+    require_once __DIR__ . '/controller/api/migrate.php';
+    exit();
+}
+
 if ($request_uri === '/api/session') {
     require_once __DIR__ . '/controller/api/session.php';
     exit();

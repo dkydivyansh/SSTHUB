@@ -75,6 +75,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit();
     }
 
+    if ($action === 'resolve_invite') {
+        $code = trim($_GET['code'] ?? '');
+        if (!$code) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid invite link']);
+            exit();
+        }
+
+        $stmt = $conn->prepare("
+            SELECT cg.id, cg.name, cg.description, cg.logo, cg.type,
+            EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = cg.id AND gm.user_id = ?) as is_member
+            FROM community_groups cg
+            JOIN group_invites gi ON cg.id = gi.groupid
+            WHERE gi.code = ? AND gi.is_active = TRUE
+        ");
+        $stmt->execute([$user_id, $code]);
+        $group = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($group) {
+            $group['is_member'] = (bool)$group['is_member'];
+            echo json_encode(['status' => 'success', 'data' => $group]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Invite link is invalid or has expired']);
+        }
+        exit();
+    }
+
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
     exit();
@@ -105,9 +131,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($group['type'] === 'private') {
-            http_response_code(403);
-            echo json_encode(['status' => 'error', 'message' => 'This group is private and requires an invite']);
-            exit();
+            $invite_code = $data['invite_code'] ?? null;
+            if (!$invite_code) {
+                http_response_code(403);
+                echo json_encode(['status' => 'error', 'message' => 'This group is private and requires an invite']);
+                exit();
+            }
+
+            // Verify invite code
+            $stmt = $conn->prepare("SELECT id FROM group_invites WHERE groupid = ? AND code = ? AND is_active = TRUE");
+            $stmt->execute([$group_id, $invite_code]);
+            if ($stmt->rowCount() === 0) {
+                http_response_code(403);
+                echo json_encode(['status' => 'error', 'message' => 'Invalid or expired invite link']);
+                exit();
+            }
         }
 
         try {

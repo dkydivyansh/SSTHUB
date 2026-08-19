@@ -37,7 +37,7 @@ if (empty($group_id)) {
 
 try {
     $stmt = $conn->prepare("
-        SELECT g.name, g.description, g.logo, g.custom_pages, m.joined_at, m.last_read_announcements, m.last_read_events
+        SELECT g.name, g.description, g.logo, g.type, g.custom_pages, m.joined_at, m.last_read_announcements, m.last_read_events
         FROM community_groups g
         JOIN group_members m ON g.id = m.group_id
         WHERE g.id = ? AND m.user_id = ?

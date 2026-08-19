@@ -74,6 +74,9 @@ export default function GroupPage() {
     }
   };
 
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
   useEffect(() => {
     let isMounted = true;
     let isFetching = false;
@@ -107,6 +110,95 @@ export default function GroupPage() {
       }).catch(console.error);
     }
   }, [activeTab, groupId]);
+
+  useEffect(() => {
+    if (activeTab === 'about' && groupInfo?.is_admin && groupInfo?.type === 'private') {
+      fetchInviteCode();
+    }
+  }, [activeTab, groupInfo?.is_admin, groupInfo?.type]);
+
+  const fetchInviteCode = async () => {
+    setInviteLoading(true);
+    try {
+      const res = await fetch('/api/group_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_invite', group_id: groupId })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setInviteCode(json.invite_code);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleCreateInvite = async (reset = false) => {
+    setInviteLoading(true);
+    try {
+      const res = await fetch('/api/group_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: reset ? 'reset_invite' : 'create_invite', group_id: groupId })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setInviteCode(json.invite_code);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleDeleteInvite = async () => {
+    setInviteLoading(true);
+    try {
+      const res = await fetch('/api/group_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_invite', group_id: groupId })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setInviteCode(null);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleCopyInvite = () => {
+    if (!inviteCode) return;
+    const url = `${window.location.origin}/dash/community?invite=${inviteCode}`;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Invite link copied!');
+      }).catch(() => {
+        showToast('Failed to copy invite link', 'error');
+      });
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast('Invite link copied!');
+      } catch (err) {
+        showToast('Failed to copy link', 'error');
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
 
   // Desktop search with debounce
   useEffect(() => {
@@ -531,6 +623,62 @@ export default function GroupPage() {
 
         {activeTab === 'about' && (
           <div className="flex flex-col gap-6">
+            {groupInfo?.type === 'private' && groupInfo?.is_admin && (
+              <div className="bg-[#FFF5E1] border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <h3 className="font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Lock size={20} className="text-black" /> Private Group Invite Link
+                </h3>
+                {inviteLoading ? (
+                  <div className="font-bold animate-pulse text-sm">Loading...</div>
+                ) : inviteCode ? (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={`${window.location.origin}/dash/community?invite=${inviteCode}`} 
+                        className="bg-white border-2 border-black p-3 font-bold text-sm outline-none flex-1 truncate"
+                      />
+                      <button 
+                        onClick={handleCopyInvite}
+                        className="bg-emerald-500 text-white border-2 border-black px-6 py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all shrink-0"
+                      >
+                        Copy Link
+                      </button>
+                    </div>
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => handleCreateInvite(true)}
+                        className="text-sm font-black uppercase underline hover:text-[#3B82F6]"
+                      >
+                        Reset Invite Link
+                      </button>
+                      <button 
+                        onClick={handleDeleteInvite}
+                        className="text-sm font-black uppercase text-red-500 underline hover:text-red-700"
+                      >
+                        Delete Invite Link
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="font-bold text-sm text-gray-700">No active invite link exists for this private group. Create one so others can join.</p>
+                    <button 
+                      onClick={() => handleCreateInvite(false)}
+                      className="bg-black text-white border-2 border-black px-6 py-3 font-black uppercase tracking-widest hover:bg-white hover:text-black transition-colors self-start mt-2"
+                    >
+                      Create Invite Link
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {groupInfo?.type === 'private' && (
+              <div className="bg-red-500 text-white font-black uppercase tracking-widest px-4 py-2 text-xs self-start border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2">
+                <Lock size={16} /> Private Group
+              </div>
+            )}
             <div className="bg-[#f4f4f5] border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <h3 className="font-black uppercase tracking-widest mb-4">Description</h3>
               <p className="font-bold text-gray-700 whitespace-pre-wrap">{groupInfo?.description || 'No description provided.'}</p>
