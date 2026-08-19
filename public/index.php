@@ -120,6 +120,21 @@ if ($request_uri === '/api/add_post') {
     exit();
 }
 
+if ($request_uri === '/api/edit_post') {
+    require_once __DIR__ . '/controller/api/edit_post.php';
+    exit();
+}
+
+if ($request_uri === '/api/delete_post') {
+    require_once __DIR__ . '/controller/api/delete_post.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/search_posts') === 0) {
+    require_once __DIR__ . '/controller/api/search_posts.php';
+    exit();
+}
+
 // Default route - Serve the React application
 $html_file = __DIR__ . '/index.html';
 if (file_exists($html_file)) {

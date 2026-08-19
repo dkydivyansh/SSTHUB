@@ -34,9 +34,10 @@ if ($status === 'invalid_session' || $status === 'disabled') {
 $data = json_decode(file_get_contents('php://input'), true);
 
 $group_id = $data['group_id'] ?? '';
+$post_id = $data['post_id'] ?? '';
 $post_type = $data['post_type'] ?? '';
 $title = trim($data['title'] ?? '');
-$content = $data['content'] ?? ''; // Already base64-encoded by frontend
+$content = $data['content'] ?? '';
 $tags = $data['tags'] ?? '';
 $buttons = $data['buttons'] ?? null;
 
@@ -45,9 +46,9 @@ $event_type = $data['event_type'] ?? 'virtual';
 $event_time = $data['event_time'] ?? null;
 
 // Validation
-if (empty($group_id) || empty($post_type) || empty($title)) {
+if (empty($group_id) || empty($post_id) || empty($post_type)) {
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'group_id, post_type, and title are required']);
+    echo json_encode(['status' => 'error', 'message' => 'group_id, post_id, and post_type are required']);
     exit();
 }
 
@@ -56,15 +57,10 @@ if (!in_array($post_type, ['announcement', 'event'])) {
     echo json_encode(['status' => 'error', 'message' => 'post_type must be announcement or event']);
     exit();
 }
-
-if ($post_type === 'event' && !in_array($event_type, ['virtual', 'offline'])) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'event_type must be virtual or offline']);
-    exit();
-}
+// No further validation needed for delete
 
 try {
-    // Check membership
+    // Verify membership
     $stmt = $conn->prepare("SELECT id FROM group_members WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     if (!$stmt->fetch()) {
@@ -87,73 +83,27 @@ try {
 
     if (!$is_admin) {
         http_response_code(403);
-        echo json_encode(['status' => 'error', 'message' => 'Only group admins can create posts']);
+        echo json_encode(['status' => 'error', 'message' => 'Only group admins can delete posts']);
         exit();
     }
 
-    // Build context JSON
-    $tags_array = [];
-    if (!empty($tags)) {
-        $tags_array = array_map('trim', explode(',', $tags));
-        $tags_array = array_filter($tags_array); // Remove empty strings
-        $tags_array = array_values($tags_array); // Re-index
-    }
-
-    $context = [
-        'title' => $title,
-        'content' => $content,
-        'tags' => $tags_array
-    ];
-
-    // Build extras JSON
-    $extras = [];
-    if ($buttons && is_array($buttons)) {
-        foreach ($buttons as $label => $url) {
-            if (is_string($label) && is_string($url) && !empty(trim($label)) && !empty(trim($url))) {
-                $extras[trim($label)] = trim($url);
-            }
-        }
-    }
-
-    if ($post_type === 'event') {
-        $context['type'] = $event_type;
-        $context['time'] = $event_time;
-        
-        $address = trim($data['address'] ?? '');
-        $rsvp_link = trim($data['rsvp_link'] ?? '');
-        
-        if ($event_type === 'offline') {
-            if (empty($address)) {
-                http_response_code(400);
-                echo json_encode(['status' => 'error', 'message' => 'Offline events require an address']);
-                exit();
-            }
-            $extras['address'] = $address;
-        }
-        
-        if (!empty($rsvp_link)) {
-            $extras['RSVP'] = $rsvp_link;
-        }
-    }
-
-    $extras = count($extras) > 0 ? $extras : null;
-
-    // Insert
+    // Verify the post exists and belongs to this group
     $table = $post_type === 'event' ? 'events' : 'announcements';
-    $stmt = $conn->prepare("INSERT INTO $table (groupid, context, extras, created_by) VALUES (?, ?, ?, ?)");
-    $stmt->execute([
-        $group_id,
-        json_encode($context),
-        $extras ? json_encode($extras) : null,
-        $user_id
-    ]);
+    $stmt = $conn->prepare("SELECT id FROM $table WHERE id = ? AND groupid = ?");
+    $stmt->execute([$post_id, $group_id]);
+    if (!$stmt->fetch()) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Post not found in this group']);
+        exit();
+    }
 
-    $new_id = $conn->lastInsertId();
+    // Delete the post
+    $stmt = $conn->prepare("DELETE FROM $table WHERE id = ? AND groupid = ?");
+    $stmt->execute([$post_id, $group_id]);
 
     echo json_encode([
         'status' => 'success',
-        'message' => ucfirst($post_type) . ' created successfully',
-        'id' => $new_id
+        'message' => ucfirst($post_type) . ' deleted successfully'
     ]);
 
 } catch (Exception $e) {

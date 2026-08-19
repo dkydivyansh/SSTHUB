@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Clock, Plus, X, Pencil, Eye, Trash2 } from 'lucide-react';
+import { ArrowLeft, Lock, Clock, Plus, X, Pencil, Eye, Trash2, Search, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import PostCard from '../components/PostCard';
 
@@ -23,10 +23,20 @@ export default function GroupPage() {
   const [tags, setTags] = useState('');
   const [eventType, setEventType] = useState<'virtual' | 'offline'>('virtual');
   const [eventTime, setEventTime] = useState('');
+  const [address, setAddress] = useState('');
+  const [rsvpLink, setRsvpLink] = useState('');
   const [buttons, setButtons] = useState<{ label: string; url: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
+
+  // Desktop search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -57,8 +67,77 @@ export default function GroupPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+    let isFetching = false;
+
+    const pollData = async () => {
+      if (isFetching || !isMounted) return;
+      isFetching = true;
+      try {
+        await fetchData();
+      } finally {
+        isFetching = false;
+        if (isMounted) {
+          setTimeout(pollData, 5000);
+        }
+      }
+    };
+
+    pollData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [groupId, navigate]);
+
+  // Desktop search with debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      setSearchPage(1);
+      return;
+    }
+    setIsSearching(true);
+    setSearchLoading(true);
+    const typeParam = activeTab === 'events' ? 'event' : activeTab === 'announcements' ? 'announcement' : '';
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search_posts?group_id=${groupId}&q=${encodeURIComponent(searchQuery.trim())}&type=${typeParam}&page=1&limit=20`);
+        const json = await res.json();
+        if (json.status === 'success') {
+          setSearchResults(json.data);
+          setSearchHasMore(json.has_more);
+          setSearchPage(1);
+        }
+      } catch (err) {
+        console.error('Search error:', err);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, groupId, activeTab]);
+
+  const loadMoreSearch = async () => {
+    const nextPage = searchPage + 1;
+    setSearchLoading(true);
+    const typeParam = activeTab === 'events' ? 'event' : activeTab === 'announcements' ? 'announcement' : '';
+    try {
+      const res = await fetch(`/api/search_posts?group_id=${groupId}&q=${encodeURIComponent(searchQuery.trim())}&type=${typeParam}&page=${nextPage}&limit=20`);
+      const json = await res.json();
+      if (json.status === 'success') {
+        setSearchResults(prev => [...prev, ...json.data]);
+        setSearchHasMore(json.has_more);
+        setSearchPage(nextPage);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -102,6 +181,8 @@ export default function GroupPage() {
       setTags('');
       setEventType('virtual');
       setEventTime('');
+      setAddress('');
+      setRsvpLink('');
       setButtons([]);
       setModalError('');
       setPreviewMode(false);
@@ -124,12 +205,18 @@ export default function GroupPage() {
 
     const ctx: any = {
       title: modalTitle || 'Untitled',
-      content: modalContent ? btoa(unescape(encodeURIComponent(modalContent))) : '',
+      content: modalContent || '',
       tags: tagsArray
     };
     if (modalType === 'event') {
       ctx.type = eventType;
       ctx.time = eventTime || null;
+      if (eventType === 'offline' && address) {
+        buttonsObj['address'] = address;
+      }
+      if (rsvpLink) {
+        buttonsObj['RSVP'] = rsvpLink;
+      }
     }
 
     return {
@@ -147,7 +234,6 @@ export default function GroupPage() {
     setModalError('');
 
     const tagsStr = tags;
-    const encodedContent = modalContent ? btoa(unescape(encodeURIComponent(modalContent))) : '';
     const buttonsObj: Record<string, string> = {};
     buttons.forEach(b => { if (b.label && b.url) buttonsObj[b.label] = b.url; });
 
@@ -159,10 +245,12 @@ export default function GroupPage() {
           group_id: groupId,
           post_type: modalType,
           title: modalTitle,
-          content: encodedContent,
+          content: modalContent,
           tags: tagsStr,
           event_type: modalType === 'event' ? eventType : undefined,
           event_time: modalType === 'event' ? eventTime : undefined,
+          address: modalType === 'event' && eventType === 'offline' ? address : undefined,
+          rsvp_link: modalType === 'event' ? rsvpLink : undefined,
           buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null
         })
       });
@@ -179,6 +267,26 @@ export default function GroupPage() {
       setIsSubmitting(false);
     }
   };
+  const handleDeletePost = async (postId: number, postType: string) => {
+    try {
+      const res = await fetch('/api/delete_post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId, post_id: postId, post_type: postType })
+      });
+      const result = await res.json();
+      if (result.status === 'success') {
+        fetchData(); // Refresh the feed
+        if (isSearching && searchQuery) {
+          setSearchResults(prev => prev.filter(p => p.id !== postId || p.post_type !== postType));
+        }
+      } else {
+        throw new Error(result.message || 'Failed to delete post');
+      }
+    } catch (err: any) {
+      throw new Error(err.message || 'Network error while deleting. Please try again.');
+    }
+  };
 
   const inputClass = "border-4 border-black p-3 font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all w-full";
 
@@ -186,33 +294,96 @@ export default function GroupPage() {
     <div className="flex flex-col w-full min-h-[60vh] relative gap-6 md:gap-8">
       
       {/* Top Banner (Header) */}
-      <div className="p-4 md:p-8 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between gap-4 bg-white">
-        <div className="flex items-center gap-4 truncate">
-          {groupInfo?.logo && (
-            <img src={groupInfo.logo} alt="Logo" className="w-12 h-12 md:w-16 md:h-16 border-2 border-black object-cover bg-white shrink-0" />
-          )}
-          <div className="truncate">
-            <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter truncate">{groupInfo?.name || `Group ${groupId}`}</h1>
-            <p className="font-bold text-xs md:text-sm text-gray-500 uppercase tracking-widest mt-1">
-              {activeTab === 'announcements' ? 'Announcements' : activeTab === 'events' ? 'Events' : 'About Group'}
-            </p>
+      <div className="p-4 md:p-8 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-4 bg-white">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 truncate">
+            {groupInfo?.logo && (
+              <img src={groupInfo.logo} alt="Logo" className="w-12 h-12 md:w-16 md:h-16 border-2 border-black object-cover bg-white shrink-0" />
+            )}
+            <div className="truncate">
+              <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter truncate">{groupInfo?.name || `Group ${groupId}`}</h1>
+              <p className="font-bold text-xs md:text-sm text-gray-500 uppercase tracking-widest mt-1">
+                {activeTab === 'announcements' ? 'Announcements' : activeTab === 'events' ? 'Events' : 'About Group'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Mobile: search icon navigates to full page */}
+            {activeTab !== 'about' && (
+              <button
+                onClick={() => isMobile ? navigate(`/dash/community/${groupId}/search?type=${activeTab === 'events' ? 'event' : 'announcement'}`, { state: { isAdmin: groupInfo?.is_admin } }) : setIsSearching(prev => !prev)}
+                className="bg-white text-black p-2 border-2 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+              >
+                <Search size={16} />
+              </button>
+            )}
+            {groupInfo?.is_admin && activeTab !== 'about' && (
+              <button onClick={() => handleAddClick(activeTab as any)} className="bg-black text-white p-2 md:px-4 md:py-3 font-black uppercase tracking-widest text-[10px] md:text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2">
+                <Plus size={16} /> <span className="hidden md:inline">Add {activeTab === 'events' ? 'Event' : 'Post'}</span>
+              </button>
+            )}
           </div>
         </div>
-        {groupInfo?.is_admin && activeTab !== 'about' && (
-          <button onClick={() => handleAddClick(activeTab as any)} className="shrink-0 bg-black text-white p-2 md:px-4 md:py-3 font-black uppercase tracking-widest text-[10px] md:text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2">
-            <Plus size={16} /> <span className="hidden md:inline">Add {activeTab === 'events' ? 'Event' : 'Post'}</span>
-          </button>
+
+        {/* Desktop: inline search bar */}
+        {isSearching && !isMobile && (
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="border-4 border-black p-2 pl-10 font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all w-full text-sm"
+              placeholder="Search announcements & events..."
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setIsSearching(false); }} className="absolute right-3 top-1/2 -translate-y-1/2">
+                <X size={16} />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col gap-6 relative min-h-[400px]">
+        {/* Desktop search results overlay */}
+        {isSearching && searchQuery.trim() && !isMobile ? (
+          <div className="flex flex-col gap-8">
+            <p className="font-black uppercase tracking-widest text-xs text-gray-500">
+              Search results for "{searchQuery}"
+            </p>
+            {searchLoading && searchResults.length === 0 && (
+              <div className="text-center p-8">
+                <Loader2 size={24} className="animate-spin mx-auto" />
+              </div>
+            )}
+            {!searchLoading && searchResults.length === 0 && (
+              <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No results found.</div>
+            )}
+            {searchResults.map((item, i) => (
+              <PostCard key={`${item.post_type}-${item.id}-${i}`} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} />
+            ))}
+            {searchHasMore && (
+              <button
+                onClick={loadMoreSearch}
+                disabled={searchLoading}
+                className="bg-black text-white p-3 font-black uppercase tracking-widest text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all border-4 border-black self-center disabled:opacity-50 flex items-center gap-2"
+              >
+                {searchLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                Load More
+              </button>
+            )}
+          </div>
+        ) : (
+        <>
         {activeTab === 'announcements' && (
           <div className="flex flex-col gap-8">
             {announcements.length === 0 ? (
               <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No announcements yet.</div>
             ) : (
-              announcements.map((item, i) => <PostCard key={i} item={item} />)
+              announcements.map((item, i) => <PostCard key={i} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} />)
             )}
           </div>
         )}
@@ -222,7 +393,7 @@ export default function GroupPage() {
             {events.length === 0 ? (
               <div className="text-center p-8 opacity-50 font-black uppercase tracking-widest">No events yet.</div>
             ) : (
-              events.map((item, i) => <PostCard key={i} item={item} />)
+              events.map((item, i) => <PostCard key={i} item={item} isAdmin={groupInfo?.is_admin} onDelete={handleDeletePost} />)
             )}
           </div>
         )}
@@ -243,6 +414,8 @@ export default function GroupPage() {
               </div>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 
@@ -314,6 +487,16 @@ export default function GroupPage() {
                       <div className="flex flex-col gap-2">
                         <label className="font-black uppercase tracking-widest text-xs">Event Date & Time *</label>
                         <input required type="datetime-local" value={eventTime} onChange={e => setEventTime(e.target.value)} className={inputClass} />
+                      </div>
+                      {eventType === 'offline' && (
+                        <div className="flex flex-col gap-2">
+                          <label className="font-black uppercase tracking-widest text-xs">Address / Location *</label>
+                          <input required value={address} onChange={e => setAddress(e.target.value)} className={inputClass} placeholder="Enter full address..." />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        <label className="font-black uppercase tracking-widest text-xs">RSVP Link (Optional)</label>
+                        <input value={rsvpLink} onChange={e => setRsvpLink(e.target.value)} className={inputClass} placeholder="https://forms.gle/..." />
                       </div>
                     </>
                   )}

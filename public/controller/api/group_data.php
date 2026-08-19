@@ -67,14 +67,14 @@ try {
     
     $data = [];
     if ($type === 'announcements') {
-        $stmt = $conn->prepare("SELECT id, 'announcement' as post_type, context, created_at, pinned, extras, created_by FROM announcements WHERE groupid = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        $stmt = $conn->prepare("SELECT id, groupid, 'announcement' as post_type, context, created_at, pinned, extras, created_by FROM announcements WHERE groupid = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
         $stmt->bindValue(1, $group_id, PDO::PARAM_STR);
         $stmt->bindValue(2, $limit, PDO::PARAM_INT);
         $stmt->bindValue(3, $offset, PDO::PARAM_INT);
         $stmt->execute();
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } elseif ($type === 'events') {
-        $stmt = $conn->prepare("SELECT id, 'event' as post_type, context, created_at, pinned, extras, created_by FROM events WHERE groupid = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        $stmt = $conn->prepare("SELECT id, groupid, 'event' as post_type, context, created_at, pinned, extras, created_by FROM events WHERE groupid = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
         $stmt->bindValue(1, $group_id, PDO::PARAM_STR);
         $stmt->bindValue(2, $limit, PDO::PARAM_INT);
         $stmt->bindValue(3, $offset, PDO::PARAM_INT);
@@ -82,9 +82,9 @@ try {
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } else {
         $sql = "
-            (SELECT id, 'announcement' as post_type, context, created_at, pinned, extras, created_by FROM announcements WHERE groupid = ?)
+            (SELECT id, groupid, 'announcement' as post_type, context, created_at, pinned, extras, created_by FROM announcements WHERE groupid = ?)
             UNION ALL
-            (SELECT id, 'event' as post_type, context, created_at, pinned, extras, created_by FROM events WHERE groupid = ?)
+            (SELECT id, groupid, 'event' as post_type, context, created_at, pinned, extras, created_by FROM events WHERE groupid = ?)
             ORDER BY created_at DESC LIMIT ? OFFSET ?
         ";
         $stmt = $conn->prepare($sql);

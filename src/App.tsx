@@ -17,6 +17,7 @@ import SocialDiscover from './pages/social/SocialDiscover';
 import Community from './pages/Community';
 import GroupPage from './pages/GroupPage';
 import CreateGroupPost from './pages/CreateGroupPost';
+import GroupSearch from './pages/GroupSearch';
 import AdminDashboard from './pages/AdminDashboard';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import PageLoader from './components/PageLoader';
@@ -50,6 +51,7 @@ function AppRoutes() {
           <Route path="community" element={<Community />} />
           <Route path="community/:groupId" element={<Navigate to="announcements" replace />} />
           <Route path="community/:groupId/create" element={<CreateGroupPost />} />
+          <Route path="community/:groupId/search" element={<GroupSearch />} />
           <Route path="community/:groupId/:tab" element={<GroupPage />} />
           <Route path="social" element={<Social />} />
           <Route path="social/discover" element={<SocialDiscover />} />

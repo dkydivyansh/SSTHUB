@@ -28,8 +28,8 @@ export default function Community() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const fetchJoinedGroups = useCallback(async () => {
-    setLoading(true);
+  const fetchJoinedGroups = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
       const res = await fetch('/api/community?action=joined_groups');
       const json = await res.json();
@@ -39,12 +39,37 @@ export default function Community() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchJoinedGroups();
+    let isMounted = true;
+    let isFetching = false;
+
+    const pollData = async () => {
+      if (isFetching || !isMounted) return;
+      isFetching = true;
+      try {
+        await fetchJoinedGroups(false);
+      } finally {
+        isFetching = false;
+        if (isMounted) {
+          setTimeout(pollData, 5000);
+        }
+      }
+    };
+
+    // Initial fetch with loader
+    fetchJoinedGroups(true).then(() => {
+      if (isMounted) {
+        setTimeout(pollData, 5000);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [fetchJoinedGroups]);
 
   useEffect(() => {

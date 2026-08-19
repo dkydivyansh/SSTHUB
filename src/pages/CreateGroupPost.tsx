@@ -1,12 +1,16 @@
-import { useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Send, Plus, Trash2, Eye, Pencil } from 'lucide-react';
 import PostCard from '../components/PostCard';
 
 export default function CreateGroupPost() {
   const { groupId } = useParams();
   const [searchParams] = useSearchParams();
-  const rawType = searchParams.get('type') || 'announcement';
+  const location = useLocation();
+  const editPost = location.state?.editPost;
+  const isEdit = !!editPost;
+
+  const rawType = searchParams.get('type') || (editPost ? editPost.post_type : 'announcement');
   const type = rawType.endsWith('s') ? rawType.slice(0, -1) : rawType;
   const navigate = useNavigate();
 
@@ -15,10 +19,54 @@ export default function CreateGroupPost() {
   const [tags, setTags] = useState('');
   const [eventType, setEventType] = useState<'virtual' | 'offline'>('virtual');
   const [eventTime, setEventTime] = useState('');
+  const [address, setAddress] = useState('');
+  const [rsvpLink, setRsvpLink] = useState('');
   const [buttons, setButtons] = useState<{ label: string; url: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
+
+  // Initialize form if editing
+  useEffect(() => {
+    if (editPost) {
+      let ctx = editPost.context || {};
+      let extras = editPost.extras || {};
+      if (typeof ctx === 'string') try { ctx = JSON.parse(ctx); } catch(e) {}
+      if (typeof extras === 'string') try { extras = JSON.parse(extras); } catch(e) {}
+
+      setTitle(ctx.title || '');
+      
+      let c = ctx.content || '';
+      try {
+        const decoded = decodeURIComponent(escape(atob(c)));
+        if (/^[A-Za-z0-9+/\n]+=*$/.test(c.trim())) { c = decoded; }
+      } catch(e) {}
+      setContent(c);
+      
+      if (Array.isArray(ctx.tags)) {
+        setTags(ctx.tags.join(', '));
+      }
+      
+      if (type === 'event') {
+        if (ctx.type) setEventType(ctx.type);
+        if (ctx.time) setEventTime(ctx.time);
+        if (extras.address) {
+          setAddress(extras.address);
+          delete extras.address;
+        }
+        if (extras.RSVP) {
+          setRsvpLink(extras.RSVP);
+          delete extras.RSVP;
+        }
+      }
+      
+      const btns: {label: string, url: string}[] = [];
+      Object.keys(extras).forEach(k => {
+        btns.push({ label: k, url: extras[k] });
+      });
+      setButtons(btns);
+    }
+  }, [editPost, type]);
 
   const addButton = () => setButtons([...buttons, { label: '', url: '' }]);
   const removeButton = (idx: number) => setButtons(buttons.filter((_, i) => i !== idx));
@@ -35,12 +83,18 @@ export default function CreateGroupPost() {
 
     const ctx: any = {
       title: title || 'Untitled',
-      content: content ? btoa(unescape(encodeURIComponent(content))) : '',
+      content: content || '',
       tags: tagsArray
     };
     if (type === 'event') {
       ctx.type = eventType;
       ctx.time = eventTime || null;
+      if (eventType === 'offline' && address) {
+        buttonsObj['address'] = address;
+      }
+      if (rsvpLink) {
+        buttonsObj['RSVP'] = rsvpLink;
+      }
     }
 
     return {
@@ -58,30 +112,38 @@ export default function CreateGroupPost() {
     setError('');
 
     const tagsStr = tags;
-    const encodedContent = content ? btoa(unescape(encodeURIComponent(content))) : '';
     const buttonsObj: Record<string, string> = {};
     buttons.forEach(b => { if (b.label && b.url) buttonsObj[b.label] = b.url; });
 
     try {
-      const res = await fetch('/api/add_post', {
+      const endpoint = isEdit ? '/api/edit_post' : '/api/add_post';
+      const body: any = {
+        group_id: groupId,
+        post_type: type,
+        title,
+        content,
+        tags: tagsStr,
+        event_type: type === 'event' ? eventType : undefined,
+        event_time: type === 'event' ? eventTime : undefined,
+        address: type === 'event' && eventType === 'offline' ? address : undefined,
+        rsvp_link: type === 'event' ? rsvpLink : undefined,
+        buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null
+      };
+
+      if (isEdit && editPost) {
+        body.post_id = editPost.id;
+      }
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          group_id: groupId,
-          post_type: type,
-          title,
-          content: encodedContent,
-          tags: tagsStr,
-          event_type: type === 'event' ? eventType : undefined,
-          event_time: type === 'event' ? eventTime : undefined,
-          buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null
-        })
+        body: JSON.stringify(body)
       });
       const result = await res.json();
       if (result.status === 'success') {
         navigate(`/dash/community/${groupId}/${type}s`);
       } else {
-        setError(result.message || 'Failed to create post');
+        setError(result.message || (isEdit ? 'Failed to edit post' : 'Failed to create post'));
         setIsSubmitting(false);
       }
     } catch (err) {
@@ -167,6 +229,16 @@ export default function CreateGroupPost() {
                 <div className="flex flex-col gap-2">
                   <label className="font-black uppercase tracking-widest text-xs">Event Date & Time *</label>
                   <input required type="datetime-local" value={eventTime} onChange={e => setEventTime(e.target.value)} className={inputClass} />
+                </div>
+                {eventType === 'offline' && (
+                  <div className="flex flex-col gap-2">
+                    <label className="font-black uppercase tracking-widest text-xs">Address / Location *</label>
+                    <input required value={address} onChange={e => setAddress(e.target.value)} className={inputClass} placeholder="Enter full address..." />
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <label className="font-black uppercase tracking-widest text-xs">RSVP Link (Optional)</label>
+                  <input value={rsvpLink} onChange={e => setRsvpLink(e.target.value)} className={inputClass} placeholder="https://forms.gle/..." />
                 </div>
               </>
             )}
