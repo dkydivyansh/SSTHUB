@@ -1,11 +1,19 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
 import { useUnreadCounts } from '../../hooks/useUnreadCounts';
+import { useGroupUnreadCounts } from '../../hooks/useGroupUnreadCounts';
 
 export default function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { unreadCommunity } = useUnreadCounts();
+
+  const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
+  const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
+  const groupId = groupMatch ? groupMatch[1] : '';
+  const activeTab = groupMatch && groupMatch[2] ? groupMatch[2] : 'announcements';
+
+  const { counts: groupCounts, markRead: markGroupRead } = useGroupUnreadCounts(isGroupPage ? groupId : '');
 
   const isActive = (path: string) => {
     if (path === '/dash') return location.pathname === '/dash';
@@ -27,13 +35,8 @@ export default function MobileBottomNav() {
     ${adminTab === tab ? (tab === 'users' ? 'text-[#3B82F6]' : tab === 'faculty' ? 'text-red-500' : 'text-emerald-500') : 'text-black hover:text-[#3B82F6]'}
   `;
 
-  const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
-  const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
-  const groupId = groupMatch ? groupMatch[1] : '';
-  const activeTab = groupMatch && groupMatch[2] ? groupMatch[2] : 'announcements';
-
   const groupNavItemClass = (tab: string) => `
-    flex flex-col items-center justify-center p-2 flex-1 transition-colors
+    flex flex-col items-center justify-center p-2 flex-1 transition-colors relative
     ${activeTab === tab ? 'text-[#3B82F6]' : 'text-black hover:text-[#3B82F6]'}
   `;
 
@@ -68,13 +71,27 @@ export default function MobileBottomNav() {
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Back</span>
           </button>
           
-          <button onClick={() => navigate(`/dash/community/${groupId}/announcements`)} className={groupNavItemClass('announcements')}>
-            <Megaphone size={20} strokeWidth={activeTab === 'announcements' ? 3 : 2} />
+          <button onClick={() => { markGroupRead('announcements'); navigate(`/dash/community/${groupId}/announcements`); }} className={groupNavItemClass('announcements')}>
+            <div className="relative flex flex-col items-center">
+              <Megaphone size={20} strokeWidth={activeTab === 'announcements' ? 3 : 2} />
+              {groupCounts.announcements > 0 && (
+                <div className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-full border border-black">
+                  {groupCounts.announcements > 99 ? '99+' : groupCounts.announcements}
+                </div>
+              )}
+            </div>
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Announce</span>
           </button>
           
-          <button onClick={() => navigate(`/dash/community/${groupId}/events`)} className={groupNavItemClass('events')}>
-            <Calendar size={20} strokeWidth={activeTab === 'events' ? 3 : 2} />
+          <button onClick={() => { markGroupRead('events'); navigate(`/dash/community/${groupId}/events`); }} className={groupNavItemClass('events')}>
+            <div className="relative flex flex-col items-center">
+              <Calendar size={20} strokeWidth={activeTab === 'events' ? 3 : 2} />
+              {groupCounts.events > 0 && (
+                <div className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-full border border-black">
+                  {groupCounts.events > 99 ? '99+' : groupCounts.events}
+                </div>
+              )}
+            </div>
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Events</span>
           </button>
           

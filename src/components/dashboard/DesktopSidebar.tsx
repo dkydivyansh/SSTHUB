@@ -2,12 +2,20 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, User, Users, Compass, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
 import { useState } from 'react';
 import { useUnreadCounts } from '../../hooks/useUnreadCounts';
+import { useGroupUnreadCounts } from '../../hooks/useGroupUnreadCounts';
 
 export default function DesktopSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const { unreadCommunity } = useUnreadCounts();
+
+  const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
+  const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
+  const groupId = groupMatch ? groupMatch[1] : '';
+  const activeGroupTab = groupMatch && groupMatch[2] ? groupMatch[2] : 'announcements';
+
+  const { counts: groupCounts, markRead: markGroupRead } = useGroupUnreadCounts(isGroupPage ? groupId : '');
 
   const isActive = (path: string) => {
     if (path === '/dash') return location.pathname === '/dash';
@@ -34,11 +42,6 @@ export default function DesktopSidebar() {
       : 'bg-white text-black hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
     }
   `;
-
-  const groupMatch = location.pathname.match(/^\/dash\/community\/([^/]+)\/?([^/]*)$/);
-  const isGroupPage = !!groupMatch && location.pathname !== '/dash/community';
-  const groupId = groupMatch ? groupMatch[1] : '';
-  const activeGroupTab = groupMatch && groupMatch[2] ? groupMatch[2] : 'announcements';
 
   const groupNavItemClass = (tab: string) => `
     flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
@@ -90,12 +93,26 @@ export default function DesktopSidebar() {
               <ArrowLeft size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Back</span>
             </button>
-            <button onClick={() => navigate(`/dash/community/${groupId}/announcements`)} className={`${groupNavItemClass('announcements')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
-              <Megaphone size={24} className="shrink-0" />
+            <button onClick={() => { markGroupRead('announcements'); navigate(`/dash/community/${groupId}/announcements`); }} className={`${groupNavItemClass('announcements')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full relative`}>
+              <div className="relative">
+                <Megaphone size={24} className="shrink-0" />
+                {groupCounts.announcements > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-black">
+                    {groupCounts.announcements > 99 ? '99+' : groupCounts.announcements}
+                  </div>
+                )}
+              </div>
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Announcements</span>
             </button>
-            <button onClick={() => navigate(`/dash/community/${groupId}/events`)} className={`${groupNavItemClass('events')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
-              <Calendar size={24} className="shrink-0" />
+            <button onClick={() => { markGroupRead('events'); navigate(`/dash/community/${groupId}/events`); }} className={`${groupNavItemClass('events')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full relative`}>
+              <div className="relative">
+                <Calendar size={24} className="shrink-0" />
+                {groupCounts.events > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-black">
+                    {groupCounts.events > 99 ? '99+' : groupCounts.events}
+                  </div>
+                )}
+              </div>
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Events</span>
             </button>
             <button onClick={() => navigate(`/dash/community/${groupId}/about`)} className={`${groupNavItemClass('about')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>

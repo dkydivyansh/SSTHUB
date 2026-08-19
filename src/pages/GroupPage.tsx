@@ -90,6 +90,16 @@ export default function GroupPage() {
     };
   }, [groupId, navigate]);
 
+  useEffect(() => {
+    if (activeTab === 'announcements' || activeTab === 'events') {
+      fetch('/api/mark_group_read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId, type: activeTab })
+      }).catch(console.error);
+    }
+  }, [activeTab, groupId]);
+
   // Desktop search with debounce
   useEffect(() => {
     if (!searchQuery.trim()) {
