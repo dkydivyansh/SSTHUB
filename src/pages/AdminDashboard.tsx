@@ -459,6 +459,24 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-wrap items-center justify-center gap-2">
+                          {u.type !== 'admin' && (
+                            <button 
+                              onClick={() => changeRole(u.userid, 'admin')}
+                              className="bg-red-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
+                              title="Make Admin"
+                            >
+                              <ShieldAlert size={16} />
+                            </button>
+                          )}
+                          {u.type === 'admin' && u.userid !== userData.user_id && (
+                            <button 
+                              onClick={() => changeRole(u.userid, 'member')}
+                              className="bg-gray-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
+                              title="Remove Admin Role"
+                            >
+                              <ShieldAlert size={16} />
+                            </button>
+                          )}
                           {u.type === 'member' && (
                             <button 
                               onClick={() => changeRole(u.userid, 'faculty')}

@@ -116,13 +116,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $target_user_id = $data['target_user_id'] ?? null;
         $new_role = $data['role'] ?? null;
 
-        if (!$target_user_id || !in_array($new_role, ['member', 'faculty'])) {
+        if (!$target_user_id || !in_array($new_role, ['member', 'faculty', 'admin'])) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Invalid user ID or role']);
             exit();
         }
 
-        // Prevent modifying another admin's role
+        // Prevent modifying another admin's role unless making them an admin
         $stmt = $conn->prepare("SELECT type FROM userdata WHERE user_id = ?");
         $stmt->execute([$target_user_id]);
         $target_user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -133,9 +133,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        if ($target_user['type'] === 'admin') {
+        // Don't let user remove their own admin role
+        if ($target_user_id == $user_id && $new_role !== 'admin') {
             http_response_code(403);
-            echo json_encode(['status' => 'error', 'message' => 'Cannot modify admin roles']);
+            echo json_encode(['status' => 'error', 'message' => 'Cannot remove your own admin role']);
+            exit();
+        }
+
+        // If trying to demote an admin (who is not self)
+        if ($target_user['type'] === 'admin' && $new_role !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'Cannot demote other admins']);
             exit();
         }
 

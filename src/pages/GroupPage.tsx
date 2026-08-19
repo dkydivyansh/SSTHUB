@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Clock, Plus, X, Pencil, Eye, Trash2, Search, Loader2 } from 'lucide-react';
+import { ArrowLeft, Lock, Clock, Plus, X, Pencil, Eye, Trash2, Search, Loader2, Share2, Check, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import PostCard from '../components/PostCard';
 
@@ -16,6 +16,14 @@ export default function GroupPage() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showModal, setShowModal] = useState(false);
   
+  // Custom Pages State
+  const [newCustomPageTitle, setNewCustomPageTitle] = useState('');
+  const [newCustomPageUrl, setNewCustomPageUrl] = useState('');
+  const [isAddingCustomPage, setIsAddingCustomPage] = useState(false);
+  
+  // Share state
+  const [copied, setCopied] = useState(false);
+
   // Modal State
   const [modalType, setModalType] = useState<'announcement' | 'event'>('announcement');
   const [modalTitle, setModalTitle] = useState('');
@@ -277,6 +285,102 @@ export default function GroupPage() {
       setIsSubmitting(false);
     }
   };
+
+  const handleJoinGroup = async () => {
+    try {
+      const res = await fetch('/api/community', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'join', group_id: groupId })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/dash/community?view=${groupId}`;
+    try {
+      if (navigator.share && window.isSecureContext) {
+        await navigator.share({
+          title: groupInfo?.name || 'Group',
+          text: `Check out ${groupInfo?.name || 'this group'}!`,
+          url: url
+        });
+      } else if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('Share cancelled or failed', err);
+    }
+  };
+
+  const handleAddCustomPage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomPageTitle.trim() || !newCustomPageUrl.trim()) return;
+    
+    setIsAddingCustomPage(true);
+    try {
+      const res = await fetch('/api/group_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'add_custom_page', 
+          group_id: groupId, 
+          title: newCustomPageTitle, 
+          url: newCustomPageUrl 
+        })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setGroupInfo({ ...groupInfo, custom_pages: json.custom_pages });
+        setNewCustomPageTitle('');
+        setNewCustomPageUrl('');
+      } else {
+        alert(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingCustomPage(false);
+    }
+  };
+
+  const handleRemoveCustomPage = async (index: number) => {
+    if (!confirm('Are you sure you want to remove this page?')) return;
+    try {
+      const res = await fetch('/api/group_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_custom_page', group_id: groupId, index })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setGroupInfo({ ...groupInfo, custom_pages: json.custom_pages });
+      } else {
+        alert(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleDeletePost = async (postId: number, postType: string) => {
     try {
       const res = await fetch('/api/delete_post', {
@@ -440,6 +544,81 @@ export default function GroupPage() {
                 <p className="font-black text-lg">{groupInfo?.joined_at ? new Date(groupInfo.joined_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown'}</p>
               </div>
             </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button 
+                onClick={handleShare}
+                className="bg-white border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all flex-1"
+              >
+                {copied ? <Check size={20} className="text-green-500" /> : <Share2 size={20} className="text-[#3B82F6]" />}
+                <span className="font-black uppercase tracking-widest text-sm">{copied ? 'Copied Link!' : 'Share Group'}</span>
+              </button>
+            </div>
+
+            {/* Custom Pages Display */}
+            {groupInfo?.custom_pages && groupInfo.custom_pages.length > 0 && (
+              <div className="bg-[#f4f4f5] border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <h3 className="font-black uppercase tracking-widest mb-4">Resources & Links</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {groupInfo.custom_pages.map((page: any, index: number) => (
+                    <div key={index} className="flex gap-2 group relative">
+                      <a 
+                        href={page.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-white border-4 border-black p-4 flex-1 flex items-center justify-between hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+                      >
+                        <span className="font-bold truncate pr-4">{page.title}</span>
+                        <ExternalLink size={16} className="text-gray-400 shrink-0" />
+                      </a>
+                      {groupInfo.is_admin && (
+                        <button
+                          onClick={() => handleRemoveCustomPage(index)}
+                          className="bg-red-500 text-white border-4 border-black p-4 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all opacity-0 group-hover:opacity-100 absolute -right-2 top-0 bottom-0 translate-x-full"
+                          title="Remove Page"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add Custom Page Form (Admins Only) */}
+            {groupInfo?.is_admin && (
+              <div className="bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <h3 className="font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Plus size={20} className="text-[#3B82F6]" /> Add Custom Page
+                </h3>
+                <form onSubmit={handleAddCustomPage} className="flex flex-col sm:flex-row gap-4">
+                  <input
+                    type="text"
+                    placeholder="Page Title"
+                    value={newCustomPageTitle}
+                    onChange={(e) => setNewCustomPageTitle(e.target.value)}
+                    className="flex-1 border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
+                    required
+                  />
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={newCustomPageUrl}
+                    onChange={(e) => setNewCustomPageUrl(e.target.value)}
+                    className="flex-[2] border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
+                    required
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={isAddingCustomPage}
+                    className="bg-black text-white border-4 border-black px-6 py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {isAddingCustomPage ? 'Adding...' : 'Add'}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
         </>
