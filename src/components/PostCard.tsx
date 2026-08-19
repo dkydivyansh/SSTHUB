@@ -6,6 +6,8 @@ interface PostCardProps {
   item: {
     id?: number;
     groupid?: string | number;
+    group_name?: string;
+    group_logo?: string;
     post_type: 'announcement' | 'event';
     context: any;
     extras: any;
@@ -13,6 +15,7 @@ interface PostCardProps {
     pinned?: boolean;
   };
   isAdmin?: boolean;
+  isDashboard?: boolean;
   onDelete?: (id: number, type: string) => void;
   onPin?: (id: number, type: string, currentStatus: boolean) => void;
 }
@@ -67,19 +70,17 @@ function timeAgo(dateString: string) {
   return 'Just now';
 }
 
-export default function PostCard({ item, isAdmin, onDelete, onPin }: PostCardProps) {
-  const navigate = useNavigate();
-  const [showConfirm, setShowConfirm] = useState(false);
+export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }: PostCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [isPinning, setIsPinning] = useState(false);
+  
+  const navigate = useNavigate();
 
-  let ctx: any = {};
-  let extras: any = {};
-  try {
-    ctx = typeof item.context === 'string' ? JSON.parse(item.context) : (item.context || {});
-    extras = typeof item.extras === 'string' ? JSON.parse(item.extras) : (item.extras || {});
-  } catch(e) {}
+  if (!item) return null;
+  const ctx = typeof item.context === 'string' ? JSON.parse(item.context || '{}') : (item.context || {});
+  const extras = typeof item.extras === 'string' ? JSON.parse(item.extras || '{}') : (item.extras || {});
 
   let content = ctx.content || '';
   if (content) {
@@ -92,43 +93,50 @@ export default function PostCard({ item, isAdmin, onDelete, onPin }: PostCardPro
   }
 
   const handleEdit = () => {
-    const pathGroupId = item.groupid || window.location.pathname.split('/')[3]; 
-    if (pathGroupId) {
-      navigate(`/dash/community/${pathGroupId}/create?type=${item.post_type}`, {
-        state: { editPost: item }
-      });
-    }
+    navigate(`/dash/community/${item.groupid}/create?edit=${item.id}&type=${item.post_type}`);
   };
 
   const handleConfirmDelete = async () => {
-    if (onDelete && item.id) {
-      setIsDeleting(true);
-      setDeleteError('');
-      try {
-        await onDelete(item.id, item.post_type);
-        setShowConfirm(false);
-      } catch (err: any) {
-        setDeleteError(err.message);
-      } finally {
-        setIsDeleting(false);
-      }
+    if (!item.id || !onDelete) return;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await onDelete(item.id, item.post_type);
+      setShowConfirm(false);
+    } catch (err: any) {
+      setDeleteError(err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleTogglePin = async () => {
-    if (onPin && item.id) {
-      setIsPinning(true);
-      try {
-        await onPin(item.id, item.post_type, !!item.pinned);
-      } finally {
-        setIsPinning(false);
-      }
+    if (!item.id || !onPin) return;
+    setIsPinning(true);
+    try {
+      await onPin(item.id, item.post_type, !!item.pinned);
+    } finally {
+      setIsPinning(false);
     }
   };
 
   return (
-    <div className={`border-4 ${item.pinned ? 'border-yellow-400' : 'border-black'} bg-[#f4f4f5] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col w-full relative`}>
-      {/* Custom Confirmation Modal */}
+    <div className={`relative bg-white border-4 border-black mb-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] ${item.pinned ? 'ring-4 ring-yellow-400 ring-offset-4' : ''}`}>
+      
+      {isDashboard && item.group_name && (
+        <div className="flex items-center gap-2 bg-[#f4f4f5] border-b-4 border-black p-2 px-4 cursor-pointer" onClick={() => navigate(`/dash/community/${item.groupid}`)}>
+          {item.group_logo ? (
+            <img src={item.group_logo} alt={item.group_name} className="w-6 h-6 border-2 border-black rounded-full" />
+          ) : (
+            <div className="w-6 h-6 bg-black border-2 border-black rounded-full" />
+          )}
+          <span className="font-black text-sm uppercase tracking-widest">{item.group_name}</span>
+          <span className="ml-auto text-[10px] font-black uppercase tracking-widest text-white bg-black px-2 py-1">
+            {item.post_type}
+          </span>
+        </div>
+      )}
+
       {showConfirm && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-white/90 backdrop-blur-sm border-b-4 border-black">
           <p className="font-black uppercase tracking-widest text-center mb-4 text-sm">
@@ -159,7 +167,11 @@ export default function PostCard({ item, isAdmin, onDelete, onPin }: PostCardPro
       )}
 
       {(ctx.title || item.created_at) && (
-        <div className={`text-white p-3 px-4 flex flex-row items-center justify-between gap-2 md:gap-4 relative ${item.pinned ? 'bg-yellow-400 text-black' : 'bg-black'}`}>
+        <div className={`p-3 px-4 flex flex-row items-center justify-between gap-2 md:gap-4 relative ${
+          item.pinned ? 'bg-yellow-400 text-black' : 
+          (isDashboard && item.post_type === 'event' ? 'bg-emerald-500 text-white' : 
+           isDashboard ? 'bg-[#3B82F6] text-white' : 'bg-black text-white')
+        }`}>
           <div className="flex flex-col md:flex-row md:items-center gap-2 overflow-hidden w-full">
             {item.pinned ? (
               <Pin size={16} className="shrink-0 fill-current" />
@@ -168,14 +180,18 @@ export default function PostCard({ item, isAdmin, onDelete, onPin }: PostCardPro
               {ctx.title || 'Untitled'}
             </h3>
             {item.created_at && (
-              <span className={`text-[10px] font-bold uppercase tracking-widest shrink-0 whitespace-nowrap hidden md:inline ${item.pinned ? 'text-black/60' : 'text-gray-400'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-widest shrink-0 whitespace-nowrap hidden md:inline ${
+                item.pinned ? 'text-black/60' : (isDashboard ? 'text-white/80' : 'text-gray-400')
+              }`}>
                 {timeAgo(item.created_at)}
               </span>
             )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {item.created_at && (
-              <span className={`text-[10px] font-bold uppercase tracking-widest shrink-0 whitespace-nowrap md:hidden ${item.pinned ? 'text-black/60' : 'text-gray-400'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-widest shrink-0 whitespace-nowrap md:hidden ${
+                item.pinned ? 'text-black/60' : (isDashboard ? 'text-white/80' : 'text-gray-400')
+              }`}>
                 {timeAgo(item.created_at)}
               </span>
             )}

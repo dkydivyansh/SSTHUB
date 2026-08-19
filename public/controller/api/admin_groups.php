@@ -108,6 +108,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $adminStmt = $conn->prepare("INSERT INTO groupadmin (groupid, userids) VALUES (?, ?)");
             $adminStmt->execute([$groupid, json_encode($admins)]);
 
+            if (!empty($admins)) {
+                $memberStmt = $conn->prepare("INSERT IGNORE INTO group_members (user_id, group_id) VALUES (?, ?)");
+                foreach ($admins as $admin_id) {
+                    $memberStmt->execute([$admin_id, $groupid]);
+                }
+            }
+
             $conn->commit();
 
             echo json_encode(['status' => 'success', 'message' => 'Group created successfully']);
@@ -155,6 +162,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $stmt = $conn->prepare("INSERT INTO groupadmin (groupid, userids) VALUES (?, ?)");
             $stmt->execute([$target_id, json_encode($admins)]);
+        }
+
+        if (!empty($admins)) {
+            $memberStmt = $conn->prepare("INSERT IGNORE INTO group_members (user_id, group_id) VALUES (?, ?)");
+            foreach ($admins as $admin_id) {
+                $memberStmt->execute([$admin_id, $target_id]);
+            }
         }
 
         echo json_encode(['status' => 'success', 'message' => 'Admins updated successfully']);

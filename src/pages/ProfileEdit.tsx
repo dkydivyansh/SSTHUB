@@ -70,13 +70,26 @@ export default function ProfileEdit() {
   };
 
   const handleInterestKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter') {
       e.preventDefault();
       const val = interestInput.trim();
       if (val && formData.interests.length < 15 && !formData.interests.includes(val)) {
         setFormData(prev => ({ ...prev, interests: [...prev.interests, val] }));
       }
       setInterestInput('');
+    }
+  };
+
+  const handleInterestChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value.endsWith(',')) {
+      const val = value.slice(0, -1).trim();
+      if (val && formData.interests.length < 15 && !formData.interests.includes(val)) {
+        setFormData(prev => ({ ...prev, interests: [...prev.interests, val] }));
+      }
+      setInterestInput('');
+    } else {
+      setInterestInput(value);
     }
   };
 
@@ -194,7 +207,7 @@ export default function ProfileEdit() {
                 type="text"
                 placeholder="Type and press Enter or comma..."
                 value={interestInput}
-                onChange={(e) => setInterestInput(e.target.value)}
+                onChange={handleInterestChange}
                 onKeyDown={handleInterestKeyDown}
                 className="bg-white text-black border-4 border-black p-3 text-sm font-bold outline-none focus:border-[#3B82F6] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
               />

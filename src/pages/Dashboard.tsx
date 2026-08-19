@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useOutletContext } from 'react-router-dom';
-import { useState } from 'react';
-import { ArrowRight, ArrowLeft, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck } from 'lucide-react';
+import PostCard from '../components/PostCard';
 
 export default function Dashboard() {
   const { userData } = useOutletContext<{ userData: any }>();
@@ -27,6 +28,64 @@ export default function Dashboard() {
   const [paperLink, setPaperLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Feed State
+  const [feedData, setFeedData] = useState<any[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedOffset, setFeedOffset] = useState(0);
+
+  useEffect(() => {
+    fetchFeed(0);
+    const interval = setInterval(() => {
+      fetchFeedBackground();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchFeedBackground = async () => {
+    try {
+      const res = await fetch(`/api/dashboard_feed?offset=0`);
+      const json = await res.json();
+      if (json.status === 'success') {
+        setFeedData(prev => {
+          if (prev.length <= 20) return json.data || [];
+          
+          const existingIds = new Set(prev.map(p => `${p.post_type}-${p.id}`));
+          const newItems = (json.data || []).filter((p: any) => !existingIds.has(`${p.post_type}-${p.id}`));
+          return [...newItems, ...prev];
+        });
+      }
+    } catch (err) {
+      // silently ignore background fetch errors
+    }
+  };
+
+  const fetchFeed = async (offset: number) => {
+    if (offset === 0) setFeedLoading(true);
+    try {
+      const res = await fetch(`/api/dashboard_feed?offset=${offset}`);
+      const json = await res.json();
+      if (json.status === 'success') {
+        if (offset === 0) {
+          setFeedData(json.data || []);
+        } else {
+          setFeedData(prev => [...prev, ...(json.data || [])]);
+        }
+        setFeedHasMore((json.data || []).length === 20);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (offset === 0) setFeedLoading(false);
+    }
+  };
+
+  const loadMore = () => {
+    const nextOffset = feedOffset + 20;
+    setFeedOffset(nextOffset);
+    fetchFeed(nextOffset);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -76,30 +135,29 @@ export default function Dashboard() {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
-
-    fetch('/api/onboarding', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'success') {
-          window.location.reload();
-        } else {
-          setError(data.message || 'An error occurred during onboarding.');
-          setLoading(false);
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        setError('Network error. Please try again.');
-        setLoading(false);
+    
+    try {
+      const res = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setShowModal(false);
+        window.location.reload();
+      } else {
+        setError(json.message || 'An error occurred during onboarding.');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -120,26 +178,72 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Main Placeholder */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full flex-1 flex flex-col items-center justify-center"
-      >
-        <div className="w-full bg-white border-4 border-black p-12 lg:p-24 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] text-center relative overflow-hidden">
-          {/* Decorative elements */}
-          <div className="absolute top-4 left-4 w-4 h-4 bg-[#3B82F6] border-2 border-black rounded-full animate-ping"></div>
-          <div className="absolute bottom-4 right-4 w-4 h-4 bg-black border-2 border-black rounded-none"></div>
+      {/* Quick Links Section */}
+      <div className="w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4">
+        {[
+          { icon: Calendar, label: 'Academic Calendar' },
+          { icon: Clock, label: 'Weekly Schedule' },
+          { icon: BookOpen, label: 'Syllabus' },
+          { icon: ClipboardCheck, label: 'Attendance' }
+        ].map((btn, i) => (
+          <button 
+            key={i}
+            disabled
+            className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-gray-100 border-4 border-black p-3 sm:p-6 opacity-60 cursor-not-allowed hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+          >
+            <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-yellow-400 text-black text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-1 sm:px-2 py-0.5 sm:py-1 border-2 border-black">
+              SOON
+            </div>
+            <btn.icon className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1" />
+            <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">{btn.label}</span>
+          </button>
+        ))}
+      </div>
 
-          <h1 className="text-5xl md:text-7xl lg:text-9xl font-black uppercase tracking-tighter text-black mb-4 transform -rotate-2">
-            COMMING <br /> <span className="text-[#3B82F6]">SOON</span>
-          </h1>
+      {/* Dashboard Activity Feed */}
+      <div className="w-full flex-1 max-w-4xl mx-auto flex flex-col gap-6 mt-8">
+        <h2 className="text-3xl font-black uppercase tracking-widest border-b-4 border-black pb-4 mb-4">
+          Latest Activity
+        </h2>
+        
+        {feedLoading ? (
+          <div className="flex justify-center p-12">
+            <Loader2 size={48} className="animate-spin text-black" />
+          </div>
+        ) : feedData.length === 0 ? (
+          <div className="w-full bg-white border-4 border-black p-12 lg:p-24 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] text-center relative overflow-hidden">
+            <div className="absolute top-4 left-4 w-4 h-4 bg-[#3B82F6] border-2 border-black rounded-full animate-ping"></div>
+            <div className="absolute bottom-4 right-4 w-4 h-4 bg-black border-2 border-black rounded-none"></div>
 
-          <p className="text-lg md:text-2xl font-bold uppercase tracking-widest text-black/60 mt-8 border-t-4 border-black pt-8">
-            Something awesome is being built here.
-          </p>
-        </div>
-      </motion.div>
+            <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-black mb-4">
+              NO <span className="text-[#3B82F6]">ACTIVITY</span> YET
+            </h1>
+
+            <p className="text-lg font-bold uppercase tracking-widest text-black/60 mt-8 border-t-4 border-black pt-8">
+              Join some groups in the Community tab to see their latest announcements and events here!
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6 w-full">
+            {feedData.map((item, index) => (
+              <PostCard 
+                key={`${item.post_type}-${item.id}-${index}`} 
+                item={item} 
+                isDashboard={true} 
+              />
+            ))}
+            
+            {feedHasMore && (
+              <button
+                onClick={loadMore}
+                className="bg-white border-4 border-black p-4 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2"
+              >
+                Load More
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Modal */}
       <AnimatePresence>

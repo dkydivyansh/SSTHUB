@@ -22,6 +22,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import PageLoader from './components/PageLoader';
 
+import NotFound from './pages/NotFound';
+
 function AppRoutes() {
   const location = useLocation();
   const [displayLocation, setDisplayLocation] = useState(location);
@@ -65,6 +67,9 @@ function AppRoutes() {
         </Route>
 
         <Route path="/logout" element={<Logout />} />
+        
+        {/* Catch-all route for 404 Not Found */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
