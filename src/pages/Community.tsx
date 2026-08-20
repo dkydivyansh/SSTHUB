@@ -44,6 +44,7 @@ export default function Community() {
   }, []);
 
   useEffect(() => {
+    document.title = 'Community - SST Hub';
     let isMounted = true;
     let isFetching = false;
 

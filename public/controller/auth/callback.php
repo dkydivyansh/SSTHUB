@@ -20,7 +20,7 @@ $code = $_GET['code'];
 // Dynamically determine the redirect URI
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$redirect_uri = $protocol . '://' . $host . '/auth/callback';
+$redirect_uri = isset($_GET['state']) ? $_GET['state'] : ($protocol . '://' . $host . '/auth/callback');
 
 // Prepare POST data to exchange the code for an access token
 $token_url = 'https://oauth2.googleapis.com/token';

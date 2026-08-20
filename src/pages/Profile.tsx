@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { User, Mail, Hash, Layers, Github, Globe, Instagram, Linkedin, Terminal, Code, Library, Edit2, LogOut, Share2, ExternalLink, Check, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -6,6 +6,14 @@ import { motion } from 'motion/react';
 export default function Profile() {
   const { userData } = useOutletContext<{ userData: any }>();
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (userData) {
+      document.title = `${userData.name} - SST Hub`;
+    } else {
+      document.title = 'My Profile - SST Hub';
+    }
+  }, [userData]);
 
   const handleShare = async () => {
     const url = `${window.location.origin}/u/${userData.rollno}`;

@@ -8,6 +8,11 @@ export default function AdminDashboard() {
   let activeTab = 'users';
   if (location.pathname.includes('/faculty')) activeTab = 'faculty';
   if (location.pathname.includes('/groups')) activeTab = 'groups';
+
+  useEffect(() => {
+    const tabName = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+    document.title = `${tabName} Admin - SST Hub`;
+  }, [activeTab]);
   
   // -- USERS STATE --
   const [users, setUsers] = useState<any[]>([]);

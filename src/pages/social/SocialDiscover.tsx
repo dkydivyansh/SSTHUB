@@ -28,6 +28,7 @@ export default function SocialDiscover() {
 
   // Restore scroll
   useEffect(() => {
+    document.title = 'Discover Users - SST Hub';
     if (initialState.current?.scrollY) {
       setTimeout(() => {
         window.scrollTo(0, initialState.current.scrollY);

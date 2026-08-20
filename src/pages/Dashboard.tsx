@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [feedOffset, setFeedOffset] = useState(0);
 
   useEffect(() => {
+    document.title = 'Dashboard - SST Hub';
     fetchFeed(0);
     const interval = setInterval(() => {
       fetchFeedBackground();

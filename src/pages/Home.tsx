@@ -11,6 +11,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    document.title = 'SST Hub';
     fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       .then(res => res.json())
       .then(data => {

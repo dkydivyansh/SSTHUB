@@ -14,7 +14,13 @@ import {
   ExternalLink
 } from 'lucide-react';
 
+import { useEffect } from 'react';
+
 export default function CodeOfConduct() {
+  useEffect(() => {
+    document.title = 'Code of Conduct - SST Hub';
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#FFF5E1] text-black font-sans py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto flex flex-col gap-8">

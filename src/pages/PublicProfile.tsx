@@ -20,6 +20,14 @@ export default function PublicProfile() {
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (userData) {
+      document.title = `${userData.name}'s Profile - SST Hub`;
+    } else {
+      document.title = 'Profile - SST Hub';
+    }
+  }, [userData]);
+
+  useEffect(() => {
     setLoading(true);
     fetch(`/api/public_profile?rollno=${rollno}`)
       .then(res => res.json())

@@ -11,6 +11,7 @@ export default function Login() {
   const errorParam = searchParams.get('error');
 
   useEffect(() => {
+    document.title = 'Login - SST Hub';
     fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       .then((res) => res.json())
       .then((data) => {
@@ -25,7 +26,8 @@ export default function Login() {
     const clientId = '395027667845-rnn22t43fi63jqoj6muqalemp1gt0ugs.apps.googleusercontent.com';
     const redirectUri = `${window.location.origin}/auth/callback`;
     const scope = encodeURIComponent('email profile openid');
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=online`;
+    const state = encodeURIComponent(redirectUri);
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=online&state=${state}`;
 
     window.location.href = authUrl;
   };

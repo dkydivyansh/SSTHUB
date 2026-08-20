@@ -52,6 +52,15 @@ export default function GroupPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (groupInfo) {
+      const tabName = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+      document.title = `${tabName} - ${groupInfo.name} - SST Hub`;
+    } else {
+      document.title = `Loading... - SST Hub`;
+    }
+  }, [groupInfo, activeTab]);
+
   const fetchData = async () => {
     try {
       const res = await fetch(`/api/group_data?group_id=${groupId}`);
