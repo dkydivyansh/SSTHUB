@@ -24,6 +24,7 @@ import PageLoader from './components/PageLoader';
 
 import NotFound from './pages/NotFound';
 import CodeOfConduct from './pages/CodeOfConduct';
+import Onboarding from './pages/Onboarding';
 
 function AppRoutes() {
   const location = useLocation();
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/coc" element={<CodeOfConduct />} />
         <Route path="/code-of-conduct" element={<Navigate to="/coc" replace />} />
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/u/:rollno" element={<PublicProfile />} />
         
         <Route path="/dash" element={<DashboardLayout />}>
