@@ -24,22 +24,8 @@ if ($status === 'invalid_session') {
     exit();
 }
 
-// Ensure the rollno in the URL matches the authenticated user
 $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-if (preg_match('#^/api/users/([^/]+)/inbox$#', $request_uri, $matches)) {
-    $requested_rollno = $matches[1];
-    
-    // Look up rollno for the authenticated user
-    $stmt = $conn->prepare("SELECT rollno FROM userdata WHERE user_id = ?");
-    $stmt->execute([$user_id]);
-    $auth_rollno = $stmt->fetchColumn();
-    
-    if ($requested_rollno !== $auth_rollno) {
-        http_response_code(403);
-        echo json_encode(['status' => 'error', 'message' => 'Forbidden: Cannot access another user\'s inbox']);
-        exit();
-    }
-} else {
+if ($request_uri !== '/api/inbox') {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Invalid route']);
     exit();

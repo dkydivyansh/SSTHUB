@@ -88,9 +88,9 @@ export default function Social() {
   const prevMessageCount = useRef(0);
   const lastSeenMsgIdRef = useRef<number | null>(null);
 
-  // Initial fetch + 2s polling for inbox
+  // Initial fetch + 5s polling for inbox
   useEffect(() => {
-    if (!rollno) return;
+    if (!currentUserId) return;
     fetchData();
 
     const interval = setInterval(() => {
@@ -100,7 +100,7 @@ export default function Social() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [rollno]);
+  }, [currentUserId]);
 
   // 1s polling for current chat messages
   useEffect(() => {
@@ -171,7 +171,7 @@ export default function Social() {
     if (!silent && isFirstLoad.current) setLoading(true);
     try {
       const [inboxRes, receivedRes, sentRes] = await Promise.all([
-        fetch(`/api/users/${rollno}/inbox`).then(r => r.json()),
+        fetch(`/api/inbox`).then(r => r.json()),
         fetch('/api/chat_requests?type=received').then(r => r.json()),
         fetch('/api/chat_requests?type=sent').then(r => r.json())
       ]);

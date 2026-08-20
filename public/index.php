@@ -65,7 +65,7 @@ if (strpos($request_uri, '/testlogin/') === 0) {
     require_once __DIR__ . '/controller/auth/testlogin.php';
     exit();
 }
-if (preg_match('#^/api/users/([^/]+)/inbox$#', $request_uri)) {
+if ($request_uri === '/api/inbox') {
     require_once __DIR__ . '/controller/api/inbox.php';
     exit();
 }
