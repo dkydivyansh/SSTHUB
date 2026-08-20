@@ -41,23 +41,28 @@ export default function Onboarding() {
     if (!audioCtxRef.current) return;
     const ctx = audioCtxRef.current;
 
-    // Only play blip 50% of the time to make it sound less mechanical
-    if (Math.random() > 0.5) return;
+    // Only play blip ~60% of the time to make it sound less repetitive/mechanical
+    if (Math.random() > 0.6) return;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    // Try a deeper, more retro speech blip sound
-    osc.type = 'square';
-    // Pitch Variation (Jitter): 10% to 15%. Lowered base to 500Hz for deeper voice.
-    const baseFreq = 500;
-    const jitter = baseFreq * 0.15; // Max 15% variation
-    osc.frequency.setValueAtTime(baseFreq + (Math.random() - 0.5) * jitter, ctx.currentTime);
+    // Use a sine wave instead of a square wave for a much softer, flute-like character voice (less robotic/buzzy)
+    osc.type = 'sine';
+    
+    // Friendly, cheerful pitch base
+    const baseFreq = 600;
+    const jitter = baseFreq * 0.2; // 20% variation
+    const freq = baseFreq + (Math.random() - 0.5) * jitter;
+    
+    // Start at freq, and slightly slide down (gives it a "spoken syllable" shape rather than a flat beep)
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.8, ctx.currentTime + 0.1);
 
-    // Envelope for Vowel Smoothing and 60-80ms duration
-    const duration = 0.07; // 70ms duration
+    // Envelope for Vowel Smoothing (soft attack and decay to remove harsh clicks)
+    const duration = 0.08; // 80ms duration
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.02); // Smooth attack
+    gain.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 0.02); // Smooth attack, increased volume (from 0.15 to 0.8)
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
     osc.connect(gain);
@@ -228,7 +233,7 @@ export default function Onboarding() {
                 <motion.div
                   initial={{ opacity: 0, y: 100 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, type: 'spring' }}
+                  transition={{ opacity: { duration: 1.2, ease: "easeOut" }, y: { duration: 0.8, type: 'spring', bounce: 0.4 } }}
                   className="absolute bottom-0 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-10 lg:right-24 h-[45vh] md:h-[65vh] flex items-end pointer-events-auto"
                 >
                   <img
