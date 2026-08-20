@@ -89,34 +89,7 @@ if (is_array($raw_papers)) {
 }
 $papers = array_slice($papers, 0, 5);
 
-// Validate description length
-if (!empty($description) && str_word_count($description) > 60) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Profile description is too long. Please keep it under 50 words.']);
-    exit();
-}
-
-function isURL($string) {
-    if (empty($string)) return false;
-    return preg_match('/https?:\/\//i', $string) || strpos($string, '/') !== false;
-}
-
-$fieldsToValidate = [
-    'GitHub' => $github,
-    'Instagram' => $instagram,
-    'LinkedIn' => $linkedin,
-    'HackerOne' => $hackerone,
-    'ORCID' => $orcid,
-    'CP Club' => $nlogn
-];
-
-foreach ($fieldsToValidate as $name => $value) {
-    if (isURL($value)) {
-        http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => "Please enter only your $name handle/ID, not a full URL."]);
-        exit();
-    }
-}
+// Strict validations removed as frontend handles input constraints
 
 $extra = [
     "description" => $description,

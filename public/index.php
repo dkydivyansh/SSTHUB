@@ -37,6 +37,11 @@ if ($request_uri === '/api/profile_update') {
     exit();
 }
 
+if ($request_uri === '/api/check_status') {
+    require_once __DIR__ . '/controller/api/check_status.php';
+    exit();
+}
+
 if ($request_uri === '/auth/callback') {
     require_once __DIR__ . '/controller/auth/callback.php';
     exit();
@@ -163,6 +168,43 @@ if ($request_uri === '/api/group_unread_counts') {
 if (strpos($request_uri, '/api/search_posts') === 0) {
     require_once __DIR__ . '/controller/api/search_posts.php';
     exit();
+}
+
+// Server-side redirection based on user status for frontend routes
+if (strpos($request_uri, '/api/') !== 0 && strpos($request_uri, '/auth/') !== 0 && $request_uri !== '/testlogin') {
+    $user_id = $_COOKIE['user_id'] ?? null;
+    $session_id = $_COOKIE['session_id'] ?? null;
+    
+    if ($user_id && $session_id) {
+        require_once __DIR__ . '/includes/SessionManager.php';
+        $sessionManager = new SessionManager($conn);
+        $status = $sessionManager->validateSessionStatus($user_id, $session_id);
+        
+        if ($status === 'valid') {
+            $stmt = $conn->prepare("SELECT status FROM userdata WHERE user_id = ?");
+            $stmt->execute([$user_id]);
+            $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($userRow) {
+                $userStatus = $userRow['status'];
+                // Redirect pending users to onboarding (unless already there)
+                if ($userStatus === 'pending' && $request_uri !== '/onboarding') {
+                    header("Location: /onboarding");
+                    exit();
+                } 
+                // Redirect disabled users to disabled page
+                else if ($userStatus === 'disabled' && $request_uri !== '/disabled') {
+                    header("Location: /disabled");
+                    exit();
+                } 
+                // Redirect active users away from onboarding and root
+                else if ($userStatus === 'active' && ($request_uri === '/onboarding' || $request_uri === '/')) {
+                    header("Location: /dash");
+                    exit();
+                }
+            }
+        }
+    }
 }
 
 // Default route - Serve the React application

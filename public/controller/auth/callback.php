@@ -130,6 +130,31 @@ if (!$user) {
     // Insert into userdata
     $stmt = $conn->prepare("INSERT INTO userdata (user_id, name, avatar, rollno, batch, status, type) VALUES (?, ?, ?, ?, ?, 'pending', 'member')");
     $stmt->execute([$user_id, $name, $picture, $rollno, $batch]);
+
+    // Auto-join SST General group if it exists
+    $stmt = $conn->prepare("SELECT id FROM community_groups WHERE name = 'SST General' LIMIT 1");
+    $stmt->execute();
+    $sst_general = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($sst_general) {
+        $group_id = $sst_general['id'];
+        $stmt = $conn->prepare("INSERT IGNORE INTO group_members (user_id, group_id) VALUES (?, ?)");
+        $stmt->execute([$user_id, $group_id]);
+    }
+
+    // Auto-join batch-specific group (e.g., 'SST 2028') if it exists
+    if ($batch) {
+        $batch_group_name = "SST " . $batch;
+        $stmt = $conn->prepare("SELECT id FROM community_groups WHERE name = ? LIMIT 1");
+        $stmt->execute([$batch_group_name]);
+        $batch_group = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($batch_group) {
+            $group_id = $batch_group['id'];
+            $stmt = $conn->prepare("INSERT IGNORE INTO group_members (user_id, group_id) VALUES (?, ?)");
+            $stmt->execute([$user_id, $group_id]);
+        }
+    }
 } else {
     $user_id = $user['id'];
     $stmt = $conn->prepare("UPDATE userdata SET name = ?, avatar = ?, rollno = ?, batch = ? WHERE user_id = ?");

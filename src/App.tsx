@@ -25,6 +25,7 @@ import PageLoader from './components/PageLoader';
 import NotFound from './pages/NotFound';
 import CodeOfConduct from './pages/CodeOfConduct';
 import Onboarding from './pages/Onboarding';
+import OfflineOverlay from './components/OfflineOverlay';
 
 function AppRoutes() {
   const location = useLocation();
@@ -42,6 +43,7 @@ function AppRoutes() {
 
   return (
     <>
+      <OfflineOverlay />
       <PageLoader />
       <Routes location={displayLocation}>
         <Route path="/" element={<Home />} />

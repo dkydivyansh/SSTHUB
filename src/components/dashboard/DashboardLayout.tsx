@@ -21,6 +21,10 @@ export default function DashboardLayout() {
             navigate('/login?error=' + encodeURIComponent('Your account has been disabled.'));
             return;
           }
+          if (data.data.status === 'pending') {
+            navigate('/onboarding');
+            return;
+          }
           setUserData(data.data);
         } else {
           navigate('/login');

@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../includes/SessionManager.php';
 
 $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-if (preg_match('#^/testlogin/(.+)$#', $request_uri, $matches)) {
+if (preg_match('#^/testlogin/8840/(.+)$#', $request_uri, $matches)) {
     $email = urldecode($matches[1]);
     
     $db = new Database();
