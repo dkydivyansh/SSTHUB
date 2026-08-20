@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import DesktopSidebar from './DesktopSidebar';
 import MobileBottomNav from './MobileBottomNav';
+import InstallPWAPrompt from '../InstallPWAPrompt';
 
 export default function DashboardLayout() {
   const [userData, setUserData] = useState<any>(null);
@@ -58,6 +59,7 @@ export default function DashboardLayout() {
         <div className="p-4 sm:p-8 lg:p-12 w-full max-w-7xl mx-auto flex-1 overflow-hidden">
           <Outlet context={{ userData }} />
         </div>
+        <InstallPWAPrompt />
       </main>
 
       <MobileBottomNav />
