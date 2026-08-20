@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useOutletContext } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck } from 'lucide-react';
+import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck, FileText, StickyNote } from 'lucide-react';
 import PostCard from '../components/PostCard';
 
 export default function Dashboard() {
@@ -180,12 +180,14 @@ export default function Dashboard() {
       )}
 
       {/* Quick Links Section */}
-      <div className="w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4">
+      <div className="w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-4">
         {[
           { icon: Calendar, label: 'Academic Calendar' },
           { icon: Clock, label: 'Weekly Schedule' },
           { icon: BookOpen, label: 'Syllabus' },
-          { icon: ClipboardCheck, label: 'Attendance' }
+          { icon: ClipboardCheck, label: 'Attendance' },
+          { icon: FileText, label: 'Assignments' },
+          { icon: StickyNote, label: 'Notes' }
         ].map((btn, i) => (
           <button 
             key={i}

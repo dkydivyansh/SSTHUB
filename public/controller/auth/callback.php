@@ -97,12 +97,10 @@ if (!$email) {
     exit();
 }
 
-/* TEMPORARY DISABLED FOR TESTING
 if (!preg_match('/@sst\.scaler\.com$/i', $email)) {
     header('Location: /login?error=' . urlencode('Only @sst.scaler.com emails are allowed.'));
     exit();
 }
-*/
 
 // Extract Rollno and Batch
 $local_part = explode('@', $email)[0];

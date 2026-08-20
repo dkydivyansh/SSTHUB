@@ -102,6 +102,15 @@ export default function Social() {
     return () => clearInterval(interval);
   }, [currentUserId]);
 
+  // Dynamic Title
+  useEffect(() => {
+    if (activeChat) {
+      document.title = `${activeChat.other_user_name} - Chat - SST Hub`;
+    } else {
+      document.title = 'Messages - SST Hub';
+    }
+  }, [activeChat]);
+
   // 1s polling for current chat messages
   useEffect(() => {
     if (!activeChat) {
