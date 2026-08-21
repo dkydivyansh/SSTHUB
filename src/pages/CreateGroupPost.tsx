@@ -8,7 +8,8 @@ export default function CreateGroupPost() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const editPost = location.state?.editPost;
-  const isEdit = !!editPost;
+  const editId = searchParams.get('edit');
+  const isEdit = !!editPost || !!editId;
 
   const rawType = searchParams.get('type') || (editPost ? editPost.post_type : 'announcement');
   const type = rawType.endsWith('s') ? rawType.slice(0, -1) : rawType;
@@ -28,9 +29,9 @@ export default function CreateGroupPost() {
 
   // Initialize form if editing
   useEffect(() => {
-    if (editPost) {
-      let ctx = editPost.context || {};
-      let extras = editPost.extras || {};
+    const initializeForm = (post: any) => {
+      let ctx = post.context || {};
+      let extras = post.extras || {};
       if (typeof ctx === 'string') try { ctx = JSON.parse(ctx); } catch(e) {}
       if (typeof extras === 'string') try { extras = JSON.parse(extras); } catch(e) {}
 
@@ -60,13 +61,28 @@ export default function CreateGroupPost() {
         }
       }
       
-      const btns: {label: string, url: string}[] = [];
-      Object.keys(extras).forEach(k => {
-        btns.push({ label: k, url: extras[k] });
-      });
-      setButtons(btns);
+      // Any remaining extras become buttons
+      const loadedButtons = Object.entries(extras).map(([label, url]) => ({
+        label, url: url as string
+      }));
+      setButtons(loadedButtons);
+    };
+
+    if (editPost) {
+      initializeForm(editPost);
+    } else if (editId && groupId) {
+      // If refreshed without state, try to fetch from group data
+      fetch(`/api/group_data?id=${groupId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success' && data.data.posts) {
+            const found = data.data.posts.find((p: any) => String(p.id) === String(editId));
+            if (found) initializeForm(found);
+          }
+        })
+        .catch(console.error);
     }
-  }, [editPost, type]);
+  }, [editPost, editId, groupId, type]);
 
   const addButton = () => setButtons([...buttons, { label: '', url: '' }]);
   const removeButton = (idx: number) => setButtons(buttons.filter((_, i) => i !== idx));
@@ -130,8 +146,8 @@ export default function CreateGroupPost() {
         buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null
       };
 
-      if (isEdit && editPost) {
-        body.post_id = editPost.id;
+      if (isEdit) {
+        body.post_id = editPost ? editPost.id : editId;
       }
 
       const res = await fetch(endpoint, {

@@ -93,7 +93,7 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
   }
 
   const handleEdit = () => {
-    navigate(`/dash/community/${item.groupid}/create?edit=${item.id}&type=${item.post_type}`);
+    navigate(`/dash/community/${item.groupid}/create?edit=${item.id}&type=${item.post_type}`, { state: { editPost: item } });
   };
 
   const handleConfirmDelete = async () => {
