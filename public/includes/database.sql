@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS conversations (
 CREATE TABLE IF NOT EXISTS participants (
     conversation_id BIGINT NOT NULL,
     user_id INT NOT NULL,
+    last_seen_message_id BIGINT DEFAULT NULL,
+    is_archived BOOLEAN DEFAULT FALSE,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (conversation_id, user_id),
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,

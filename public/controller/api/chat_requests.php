@@ -83,7 +83,7 @@ if ($request_uri === '/api/chat_requests' && $request_method === 'POST') {
         $jsonMessage = json_encode(['text' => $message]);
 
         // Insert or ignore if duplicate request exists
-        $stmt = $conn->prepare("INSERT INTO chat_requests (from_user_id, to_user_id, message) VALUES (?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO chat_requests (sender_id, receiver_id, message) VALUES (?, ?, ?)");
         $stmt->execute([$user_id, $other_user_id, $jsonMessage]);
 
         echo json_encode(['status' => 'success', 'message' => 'Request sent']);
@@ -115,8 +115,8 @@ if ($request_uri === '/api/chat_requests' && $request_method === 'GET') {
                     ud.avatar, 
                     ud.rollno
                 FROM chat_requests cr
-                JOIN userdata ud ON cr.to_user_id = ud.user_id
-                WHERE cr.from_user_id = ?
+                JOIN userdata ud ON cr.receiver_id = ud.user_id
+                WHERE cr.sender_id = ?
                 ORDER BY cr.created_at DESC
             ");
         } else {
@@ -130,8 +130,8 @@ if ($request_uri === '/api/chat_requests' && $request_method === 'GET') {
                     ud.avatar, 
                     ud.rollno
                 FROM chat_requests cr
-                JOIN userdata ud ON cr.from_user_id = ud.user_id
-                WHERE cr.to_user_id = ?
+                JOIN userdata ud ON cr.sender_id = ud.user_id
+                WHERE cr.receiver_id = ?
                 ORDER BY cr.created_at DESC
             ");
         }
@@ -153,7 +153,7 @@ if (preg_match('#^/api/chat_requests/(\d+)/(accept|ignore)$#', $request_uri, $ma
 
     try {
         // Fetch request details
-        $stmt = $conn->prepare("SELECT from_user_id, message FROM chat_requests WHERE id = ? AND to_user_id = ? AND status = 'pending' LIMIT 1");
+        $stmt = $conn->prepare("SELECT sender_id, message FROM chat_requests WHERE id = ? AND receiver_id = ? AND status = 'pending' LIMIT 1");
         $stmt->execute([$request_id, $user_id]);
         $reqData = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -171,7 +171,7 @@ if (preg_match('#^/api/chat_requests/(\d+)/(accept|ignore)$#', $request_uri, $ma
         }
 
         if ($action === 'accept') {
-            $from_user_id = $reqData['from_user_id'];
+            $sender_id = $reqData['sender_id'];
             $message = $reqData['message'];
 
             $conn->beginTransaction();
@@ -196,12 +196,12 @@ if (preg_match('#^/api/chat_requests/(\d+)/(accept|ignore)$#', $request_uri, $ma
 
                 // Add participants
                 $stmt = $conn->prepare("INSERT INTO participants (conversation_id, user_id) VALUES (?, ?), (?, ?)");
-                $stmt->execute([$conversation_id, $user_id, $conversation_id, $from_user_id]);
+                $stmt->execute([$conversation_id, $user_id, $conversation_id, $sender_id]);
 
                 // Insert initial message
                 if (!empty($message)) {
                     $stmt = $conn->prepare("INSERT INTO messages (conversation_id, sender_id, content) VALUES (?, ?, ?)");
-                    $stmt->execute([$conversation_id, $from_user_id, $message]);
+                    $stmt->execute([$conversation_id, $sender_id, $message]);
                 }
             } else {
                 $conversation_id = $existing_conversation;

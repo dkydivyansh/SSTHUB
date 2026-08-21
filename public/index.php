@@ -175,6 +175,11 @@ if (strpos($request_uri, '/api/search_posts') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/check_db') === 0) {
+    require_once __DIR__ . '/check_db.php';
+    exit();
+}
+
 // Server-side redirection based on user status for frontend routes
 if (strpos($request_uri, '/api/') !== 0 && strpos($request_uri, '/auth/') !== 0 && $request_uri !== '/testlogin') {
     $user_id = $_COOKIE['user_id'] ?? null;
