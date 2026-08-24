@@ -1,9 +1,49 @@
 import { motion, useScroll, useTransform, useMotionValue, useSpring } from 'motion/react';
-import { ArrowRight, BookOpen, Star } from 'lucide-react';
-import React, { useRef, useEffect } from 'react';
+import { ArrowRight, BookOpen, Star, X } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 export default function Hero() {
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showIOSModal, setShowIOSModal] = useState(false);
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+      || (window.navigator as any).standalone 
+      || document.referrer.includes('android-app://');
+    setIsInstalled(isStandalone);
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!deferredPrompt) {
+      setShowIOSModal(true);
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+  };
+
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -135,20 +175,57 @@ export default function Hero() {
               Portal
             </span>
           </h1>
-          <Link to="/login" className="inline-block">
-            <motion.div 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={`px-8 sm:px-12 py-4 sm:py-5 bg-black text-white font-black uppercase tracking-widest border-4 border-black ${colors.btnShadow} hover:translate-x-1 hover:translate-y-1 ${colors.btnHoverShadow} transition-all text-lg sm:text-xl flex items-center gap-3 relative group cursor-pointer`}
-            >
-              <span className="relative z-10 flex items-center gap-3">
-                Open Portal <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
-              </span>
-              <div className="absolute inset-0 w-0 bg-blue-500 transition-all duration-300 ease-out group-hover:w-full z-0" />
-            </motion.div>
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 sm:mt-12">
+            <Link to="/login" className="inline-block">
+              <motion.div 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`px-6 py-3 bg-black text-white font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[0px_0px_0px_0px_rgba(59,130,246,1)] transition-all text-sm flex items-center gap-2 relative group cursor-pointer`}
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  Open Portal <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </span>
+                <div className="absolute inset-0 w-0 bg-blue-500 transition-all duration-300 ease-out group-hover:w-full z-0" />
+              </motion.div>
+            </Link>
+            
+            {!isInstalled && (
+              <button onClick={handleInstallClick} className="inline-block outline-none">
+                <motion.div 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`px-6 py-3 bg-[#FFF5E1] text-black font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[0px_0px_0px_0px_rgba(0,0,0,1)] transition-all text-sm flex items-center gap-2 relative cursor-pointer`}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Install App
+                  </span>
+                </motion.div>
+              </button>
+            )}
+          </div>
         </motion.div>
       </div>
+
+      {showIOSModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowIOSModal(false)}>
+          <div className="bg-[#FFF5E1] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-sm w-full p-6 relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowIOSModal(false)} className="absolute top-3 right-3 hover:-translate-y-1 transition-transform p-1 bg-white border-2 border-black">
+               <X size={20} />
+            </button>
+            <h3 className="font-black uppercase tracking-tighter text-2xl mb-4 text-black">Manual Install</h3>
+            <p className="font-bold text-gray-700 text-sm mb-6 leading-relaxed">
+              To install this app on your device:
+              <br/><br/>
+              <strong>iOS (Safari):</strong> Tap the <span className="inline-flex items-center justify-center border-2 border-black px-1.5 py-0.5 mx-1 bg-white text-[10px] uppercase tracking-widest leading-none">Share</span> icon at the bottom of your screen, then scroll down and select <span className="inline-flex items-center justify-center border-2 border-black px-1.5 py-0.5 mx-1 bg-white text-[10px] uppercase tracking-widest leading-none">Add to Home Screen</span>.
+              <br/><br/>
+              <strong>Other Browsers:</strong> Look for the "Install" or "Add to Home Screen" option in your browser's options menu.
+            </p>
+            <button onClick={() => setShowIOSModal(false)} className="w-full bg-black text-white py-3 font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] hover:-translate-y-1 hover:shadow-[0px_0px_0px_0px_rgba(59,130,246,1)] transition-all">
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
