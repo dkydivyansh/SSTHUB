@@ -65,6 +65,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
+    if ($action === 'update_group_details') {
+        $name = trim($data['name'] ?? '');
+        $description = trim($data['description'] ?? '');
+        $logo = trim($data['logo'] ?? '');
+        $type = in_array($data['type'] ?? '', ['public', 'private']) ? $data['type'] : 'public';
+
+        if (empty($name)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Group name is required']);
+            exit();
+        }
+
+        try {
+            $stmt = $conn->prepare("UPDATE community_groups SET name = ?, description = ?, logo = ?, type = ? WHERE id = ?");
+            $stmt->execute([$name, $description, $logo, $type, $group_id]);
+            echo json_encode(['status' => 'success', 'message' => 'Group details updated']);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Database error']);
+        }
+        exit();
+    }
+
     if ($action === 'add_custom_page') {
         $title = trim($data['title'] ?? '');
         $url = trim($data['url'] ?? '');

@@ -100,6 +100,16 @@ if (strpos($request_uri, '/api/attachments') === 0) {
     exit();
 }
 
+if ($request_uri === '/api/image_proxy') {
+    require_once __DIR__ . '/controller/api/image_proxy.php';
+    exit();
+}
+
+if ($request_uri === '/api/link_preview') {
+    require_once __DIR__ . '/controller/api/link_preview.php';
+    exit();
+}
+
 if (strpos($request_uri, '/api/admin/users') === 0) {
     require_once __DIR__ . '/controller/api/admin_users.php';
     exit();

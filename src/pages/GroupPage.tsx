@@ -20,6 +20,11 @@ export default function GroupPage() {
   const [newCustomPageTitle, setNewCustomPageTitle] = useState('');
   const [newCustomPageUrl, setNewCustomPageUrl] = useState('');
   const [isAddingCustomPage, setIsAddingCustomPage] = useState(false);
+
+  // Edit Group State
+  const [isEditingGroup, setIsEditingGroup] = useState(false);
+  const [editGroupData, setEditGroupData] = useState({ name: '', description: '', logo: '', type: 'public' });
+  const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
   
   // Share state
   const [copied, setCopied] = useState(false);
@@ -504,6 +509,33 @@ export default function GroupPage() {
     }
   };
 
+  const handleUpdateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdatingGroup(true);
+    try {
+      const res = await fetch('/api/group_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'update_group_details', 
+          group_id: groupId, 
+          ...editGroupData 
+        })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setIsEditingGroup(false);
+        fetchData(); // refresh the page
+      } else {
+        alert(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUpdatingGroup(false);
+    }
+  };
+
   const handleDeletePost = async (postId: number, postType: string) => {
     try {
       const res = await fetch('/api/delete_post', {
@@ -767,10 +799,52 @@ export default function GroupPage() {
 
             {/* Add Custom Page Form (Admins Only) */}
             {groupInfo?.is_admin && (
-              <div className="bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <h3 className="font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Plus size={20} className="text-[#3B82F6]" /> Add Custom Page
-                </h3>
+              <div className="flex flex-col gap-6 w-full">
+                {/* Edit Group Details Form */}
+                <div className="bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-black uppercase tracking-widest flex items-center gap-2">
+                      <Pencil size={20} className="text-[#3B82F6]" /> Edit Group Details
+                    </h3>
+                    {!isEditingGroup ? (
+                      <button 
+                        onClick={() => {
+                          setEditGroupData({ name: groupInfo.name || '', description: groupInfo.description || '', logo: groupInfo.logo || '', type: groupInfo.type || 'public' });
+                          setIsEditingGroup(true);
+                        }} 
+                        className="bg-black text-white px-4 py-2 font-black uppercase text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => setIsEditingGroup(false)} 
+                        className="bg-white border-2 border-black px-4 py-2 font-black uppercase text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                  {isEditingGroup && (
+                    <form onSubmit={handleUpdateGroup} className="flex flex-col gap-4">
+                      <input type="text" placeholder="Group Name" value={editGroupData.name} onChange={e => setEditGroupData({...editGroupData, name: e.target.value})} className="border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" required />
+                      <textarea placeholder="Description" value={editGroupData.description} onChange={e => setEditGroupData({...editGroupData, description: e.target.value})} className="border-4 border-black p-3 font-bold outline-none resize-none h-24 focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" />
+                      <input type="text" placeholder="Logo URI" value={editGroupData.logo} onChange={e => setEditGroupData({...editGroupData, logo: e.target.value})} className="border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" />
+                      <select value={editGroupData.type} onChange={e => setEditGroupData({...editGroupData, type: e.target.value})} className="border-4 border-black p-3 font-black uppercase tracking-widest outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all">
+                        <option value="public">Public Group</option>
+                        <option value="private">Private Group</option>
+                      </select>
+                      <button type="submit" disabled={isUpdatingGroup} className="bg-emerald-500 text-black border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50">
+                        {isUpdatingGroup ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                <div className="bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <h3 className="font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Plus size={20} className="text-[#3B82F6]" /> Add Custom Page
+                  </h3>
                 <form onSubmit={handleAddCustomPage} className="flex flex-col sm:flex-row gap-4">
                   <input
                     type="text"
@@ -797,6 +871,7 @@ export default function GroupPage() {
                   </button>
                 </form>
               </div>
+            </div>
             )}
           </div>
         )}
@@ -894,12 +969,14 @@ export default function GroupPage() {
                       </button>
                     </div>
                     {buttons.map((btn, i) => (
-                      <div key={i} className="flex gap-2 items-center">
-                        <input value={btn.label} onChange={e => updateButton(i, 'label', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-1 focus:outline-none" placeholder="Label" />
-                        <input value={btn.url} onChange={e => updateButton(i, 'url', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-[2] focus:outline-none" placeholder="https://..." />
-                        <button type="button" onClick={() => removeButton(i)} className="text-red-500 hover:text-red-700 p-1">
-                          <Trash2 size={16} />
-                        </button>
+                      <div key={i} className="flex flex-col gap-2 w-full min-w-0 bg-[#f4f4f5] p-3 border-4 border-black">
+                        <input value={btn.label} onChange={e => updateButton(i, 'label', e.target.value)} className="border-4 border-black p-2 font-bold text-sm w-full focus:outline-none min-w-0 bg-white" placeholder="Label" />
+                        <div className="flex gap-2 w-full items-center min-w-0">
+                          <input value={btn.url} onChange={e => updateButton(i, 'url', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-1 focus:outline-none min-w-0 w-full bg-white" placeholder="https://..." />
+                          <button type="button" onClick={() => removeButton(i)} className="text-red-500 hover:text-red-700 p-2 shrink-0 bg-white border-4 border-black hover:-translate-y-1 transition-all">
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

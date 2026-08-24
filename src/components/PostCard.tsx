@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Calendar as CalendarIcon, MapPin, Pencil, Trash2, Pin, PinOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import LinkPreview from './LinkPreview';
 
 interface PostCardProps {
   item: {
@@ -76,6 +77,10 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
   const [deleteError, setDeleteError] = useState('');
   const [isPinning, setIsPinning] = useState(false);
   
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  
   const navigate = useNavigate();
 
   if (!item) return null;
@@ -92,9 +97,28 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
     } catch(e) {}
   }
 
+  useEffect(() => {
+    if (contentRef.current && !isExpanded) {
+      setIsClamped(contentRef.current.scrollHeight > contentRef.current.clientHeight);
+    }
+  }, [content, isExpanded]);
+
   const handleEdit = () => {
     navigate(`/dash/community/${item.groupid}/create?edit=${item.id}&type=${item.post_type}`, { state: { editPost: item } });
   };
+
+  const extractFirstUrl = (text: string) => {
+    if (!text) return null;
+    const match = text.match(/(https?:\/\/[^\s<]+)/);
+    // Remove trailing punctuation that might have been caught
+    let url = match ? match[1] : null;
+    if (url && (url.endsWith('.') || url.endsWith(',') || url.endsWith(')'))) {
+      url = url.slice(0, -1);
+    }
+    return url;
+  };
+
+  const previewUrl = extractFirstUrl(content);
 
   const handleConfirmDelete = async () => {
     if (!item.id || !onDelete) return;
@@ -176,7 +200,7 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
             {item.pinned ? (
               <Pin size={16} className="shrink-0 fill-current" />
             ) : null}
-            <h3 className="font-black text-xl uppercase tracking-tighter truncate leading-none md:leading-normal shrink max-w-full">
+            <h3 className="font-black text-xl uppercase tracking-tighter break-words whitespace-normal leading-none md:leading-normal shrink w-full">
               {ctx.title || 'Untitled'}
             </h3>
             {item.created_at && (
@@ -241,10 +265,33 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
         )}
 
         {content && (
-          <div 
-            className="text-base font-bold text-gray-800 break-words"
-            dangerouslySetInnerHTML={formatText(content)} 
-          />
+          <div className="flex flex-col gap-1">
+            <div 
+              ref={contentRef}
+              className={`text-base font-bold text-gray-800 break-words transition-all ${isExpanded ? '' : 'line-clamp-5'}`}
+              dangerouslySetInnerHTML={formatText(content)} 
+            />
+            {isClamped && !isExpanded && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                className="text-[#3B82F6] font-black uppercase tracking-widest text-xs self-start hover:underline mt-1 cursor-pointer"
+              >
+                ... Read More
+              </button>
+            )}
+            {isExpanded && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+                className="text-[#3B82F6] font-black uppercase tracking-widest text-xs self-start hover:underline mt-1 cursor-pointer"
+              >
+                Show Less
+              </button>
+            )}
+          </div>
+        )}
+
+        {previewUrl && (
+          <LinkPreview url={previewUrl} />
         )}
 
         {ctx.tags && Array.isArray(ctx.tags) && ctx.tags.length > 0 && (

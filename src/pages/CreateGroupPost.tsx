@@ -268,12 +268,14 @@ export default function CreateGroupPost() {
                 </button>
               </div>
               {buttons.map((btn, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <input value={btn.label} onChange={e => updateButton(i, 'label', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-1 focus:outline-none" placeholder="Label" />
-                  <input value={btn.url} onChange={e => updateButton(i, 'url', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-[2] focus:outline-none" placeholder="https://..." />
-                  <button type="button" onClick={() => removeButton(i)} className="text-red-500 hover:text-red-700 p-1">
-                    <Trash2 size={16} />
-                  </button>
+                <div key={i} className="flex flex-col gap-2 w-full min-w-0 bg-[#f4f4f5] p-3 border-4 border-black">
+                  <input value={btn.label} onChange={e => updateButton(i, 'label', e.target.value)} className="border-4 border-black p-2 font-bold text-sm w-full focus:outline-none min-w-0 bg-white" placeholder="Label" />
+                  <div className="flex gap-2 w-full items-center min-w-0">
+                    <input value={btn.url} onChange={e => updateButton(i, 'url', e.target.value)} className="border-4 border-black p-2 font-bold text-sm flex-1 focus:outline-none min-w-0 w-full bg-white" placeholder="https://..." />
+                    <button type="button" onClick={() => removeButton(i)} className="text-red-500 hover:text-red-700 p-2 shrink-0 bg-white border-4 border-black hover:-translate-y-1 transition-all">
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
