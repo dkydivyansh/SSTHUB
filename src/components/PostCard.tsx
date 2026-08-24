@@ -333,9 +333,9 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
           </div>
         )}
 
-        {extras && Object.keys(extras).filter(k => k !== 'address').length > 0 && (
+        {extras && Object.keys(extras).filter(k => !['address', 'featured', 'featured_type'].includes(k)).length > 0 && (
           <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t-2 border-black border-dashed">
-            {Object.entries(extras).filter(([k]) => k !== 'address').map(([label, link], i) => (
+            {Object.entries(extras).filter(([k]) => !['address', 'featured', 'featured_type'].includes(k)).map(([label, link], i) => (
               <a 
                 key={i} 
                 href={link as string} 
