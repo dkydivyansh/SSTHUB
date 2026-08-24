@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Send, Plus, Trash2, Eye, Pencil } from 'lucide-react';
 import PostCard from '../components/PostCard';
@@ -26,6 +26,13 @@ export default function CreateGroupPost() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
+  
+  const [featuredMedia, setFeaturedMedia] = useState<File | null>(null);
+  const [featuredPreview, setFeaturedPreview] = useState<string | null>(null);
+  const [featuredPreviewType, setFeaturedPreviewType] = useState<string | null>(null);
+  const [clearFeatured, setClearFeatured] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize form if editing
   useEffect(() => {
@@ -59,6 +66,13 @@ export default function CreateGroupPost() {
           setRsvpLink(extras.RSVP);
           delete extras.RSVP;
         }
+      }
+      
+      if (extras.featured) {
+        setFeaturedPreview(`/api/group_attachment_get?id=${extras.featured}`);
+        setFeaturedPreviewType(extras.featured_type || 'image/jpeg');
+        delete extras.featured;
+        delete extras.featured_type;
       }
       
       // Any remaining extras become buttons
@@ -113,11 +127,21 @@ export default function CreateGroupPost() {
       }
     }
 
+    const extrasObj: any = Object.keys(buttonsObj).length > 0 ? buttonsObj : {};
+    
+    if (featuredMedia) {
+      extrasObj.featured = URL.createObjectURL(featuredMedia);
+      extrasObj.featured_type = featuredMedia.type;
+    } else if (featuredPreview && !clearFeatured) {
+      extrasObj.featured = featuredPreview.replace('/api/group_attachment_get?id=', '');
+      extrasObj.featured_type = featuredPreviewType || (extrasObj.featured?.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
+    }
+
     return {
       id: 0,
       post_type: type as 'announcement' | 'event',
       context: ctx,
-      extras: Object.keys(buttonsObj).length > 0 ? buttonsObj : null,
+      extras: Object.keys(extrasObj).length > 0 ? extrasObj : null,
       created_at: new Date().toISOString()
     };
   };
@@ -132,6 +156,38 @@ export default function CreateGroupPost() {
     buttons.forEach(b => { if (b.label && b.url) buttonsObj[b.label] = b.url; });
 
     try {
+      let finalFeatured = '';
+      let finalFeaturedType = '';
+      
+      if (featuredMedia) {
+        const CHUNK_SIZE = 1024 * 1024;
+        const totalChunks = Math.ceil(featuredMedia.size / CHUNK_SIZE);
+        const fileUuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, featuredMedia.size);
+          const chunk = featuredMedia.slice(start, end);
+          
+          const formData = new FormData();
+          formData.append('file_uuid', fileUuid);
+          formData.append('chunk_index', i.toString());
+          formData.append('total_chunks', totalChunks.toString());
+          formData.append('group_id', groupId || '');
+          formData.append('original_name', featuredMedia.name);
+          formData.append('mime_type', featuredMedia.type || 'application/octet-stream');
+          formData.append('chunk', chunk);
+          
+          const uRes = await fetch('/api/group_attachment_upload', { method: 'POST', body: formData });
+          const uData = await uRes.json();
+          if (uData.status !== 'success') {
+            throw new Error(uData.message || 'Upload failed');
+          }
+          setUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
+        }
+        finalFeatured = fileUuid;
+        finalFeaturedType = featuredMedia.type;
+      }
+
       const endpoint = isEdit ? '/api/edit_post' : '/api/add_post';
       const body: any = {
         group_id: groupId,
@@ -143,7 +199,10 @@ export default function CreateGroupPost() {
         event_time: type === 'event' ? eventTime : undefined,
         address: type === 'event' && eventType === 'offline' ? address : undefined,
         rsvp_link: type === 'event' ? rsvpLink : undefined,
-        buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null
+        buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null,
+        featured: finalFeatured || undefined,
+        featured_type: finalFeaturedType || undefined,
+        clear_featured: clearFeatured
       };
 
       if (isEdit) {
@@ -171,32 +230,32 @@ export default function CreateGroupPost() {
   const inputClass = "border-4 border-black p-3 font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all w-full";
 
   return (
-    <div className="flex flex-col h-full min-h-[100dvh] bg-[#f4f4f5] relative -m-4 w-[calc(100%+2rem)] sm:m-0 sm:w-full">
-      <div className="p-4 bg-white border-b-4 border-black flex items-center justify-between">
+    <div className="flex flex-col w-full bg-transparent">
+      <div className="p-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between mb-6">
         <button 
           onClick={() => navigate(`/dash/community/${groupId}`)}
           className="bg-black text-white p-2 md:px-4 md:py-2 font-black uppercase text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2"
         >
           <ArrowLeft size={16} /> Back
         </button>
-        <h1 className="font-black uppercase tracking-tighter text-lg">{isEdit ? 'Update' : 'New'} {type}</h1>
+        <h1 className="font-black uppercase tracking-tighter text-lg md:text-2xl">{isEdit ? 'Update' : 'New'} {type}</h1>
         <div className="w-16" />
       </div>
 
-      <div className="p-4 flex-1 flex flex-col max-w-2xl mx-auto w-full">
+      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full gap-4">
         {/* Edit / Preview Toggle */}
-        <div className="flex gap-0 mb-4 border-4 border-black self-start">
+        <div className="flex gap-0 border-4 border-black self-start bg-white w-full sm:w-auto shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <button
             type="button"
             onClick={() => setPreviewMode(false)}
-            className={`px-4 py-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 transition-colors ${!previewMode ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+            className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 font-black uppercase text-xs tracking-widest flex justify-center items-center gap-2 transition-colors ${!previewMode ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
           >
             <Pencil size={14} /> Edit
           </button>
           <button
             type="button"
             onClick={() => setPreviewMode(true)}
-            className={`px-4 py-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 transition-colors border-l-4 border-black ${previewMode ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+            className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 font-black uppercase text-xs tracking-widest flex justify-center items-center gap-2 transition-colors border-l-4 border-black ${previewMode ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
           >
             <Eye size={14} /> Preview
           </button>
@@ -208,7 +267,7 @@ export default function CreateGroupPost() {
             <PostCard item={buildPreviewItem()} />
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 md:gap-6 bg-white border-4 border-black p-4 md:p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             {error && (
               <div className="bg-red-500 text-white p-3 font-bold border-4 border-black text-sm">{error}</div>
             )}
@@ -224,6 +283,61 @@ export default function CreateGroupPost() {
               <label className="font-black uppercase tracking-widest text-xs">Content *</label>
               <textarea value={content} onChange={e => setContent(e.target.value)} required className={`${inputClass} min-h-[160px] resize-y`} placeholder="Write your post here..." />
               <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">*bold*, _italic_, ~strike~, `code`</span>
+            </div>
+
+            {/* Featured Media */}
+            <div className="flex flex-col gap-2">
+              <label className="font-black uppercase tracking-widest text-xs">Featured Media (Optional)</label>
+              <div className="border-4 border-black p-4 flex flex-col gap-4">
+                {(featuredPreview || featuredMedia) ? (
+                  <div className="relative group">
+                    {((featuredMedia?.type.startsWith('video/') || featuredPreviewType?.startsWith('video/'))) ? (
+                      <video src={featuredMedia ? URL.createObjectURL(featuredMedia) : (featuredPreview as string)} controls className="w-full max-h-[300px] object-cover border-2 border-black" />
+                    ) : (
+                      <img src={featuredMedia ? URL.createObjectURL(featuredMedia) : (featuredPreview as string)} alt="Preview" className="w-full max-h-[300px] object-cover border-2 border-black" />
+                    )}
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setFeaturedMedia(null);
+                        setFeaturedPreview(null);
+                        setFeaturedPreviewType(null);
+                        setClearFeatured(true);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-2 border-2 border-black hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    type="button" 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 p-6 border-4 border-dashed border-gray-400 text-gray-500 font-black uppercase tracking-widest hover:border-black hover:text-black transition-all"
+                  >
+                    <Plus size={24} /> Add Image or Video
+                  </button>
+                )}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept="image/*,video/*" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 50 * 1024 * 1024) {
+                        setError('File size must be under 50MB');
+                        return;
+                      }
+                      setFeaturedMedia(file);
+                      setClearFeatured(false);
+                      setError('');
+                    }
+                  }} 
+                />
+              </div>
             </div>
 
             {/* Tags */}
@@ -286,7 +400,7 @@ export default function CreateGroupPost() {
               disabled={isSubmitting}
               className="bg-[#3B82F6] text-white p-4 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-4 border-black mt-2"
             >
-              <Send size={20} /> {isSubmitting ? 'Posting...' : 'Post'}
+              <Send size={20} /> {isSubmitting ? (uploadProgress > 0 && uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : 'Posting...') : 'Post'}
             </button>
           </form>
         )}

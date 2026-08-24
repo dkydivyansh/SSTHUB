@@ -94,9 +94,10 @@ try {
 
     // Verify the post exists and belongs to this group
     $table = $post_type === 'event' ? 'events' : 'announcements';
-    $stmt = $conn->prepare("SELECT id FROM $table WHERE id = ? AND groupid = ?");
+    $stmt = $conn->prepare("SELECT id, extras FROM $table WHERE id = ? AND groupid = ?");
     $stmt->execute([$post_id, $group_id]);
-    if (!$stmt->fetch()) {
+    $existing_post = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$existing_post) {
         http_response_code(404);
         echo json_encode(['status' => 'error', 'message' => 'Post not found in this group']);
         exit();
@@ -149,7 +150,33 @@ try {
 
     $extras = count($extras) > 0 ? $extras : null;
 
-    // Update the post and bump created_at to current time
+    $featured = trim($data['featured'] ?? '');
+    $featured_type = trim($data['featured_type'] ?? '');
+    $clear_featured = $data['clear_featured'] ?? false; // true if user explicitly removed media
+    
+    $old_extras = json_decode($existing_post['extras'] ?? '{}', true);
+    $old_featured = $old_extras['featured'] ?? null;
+    
+    // If the user uploads a new featured media, or explicitly clears it, and there was an old one, delete the old one
+    if ($old_featured && (($featured && $featured !== $old_featured) || $clear_featured)) {
+        $del_stmt = $conn->prepare("DELETE FROM group_attachments WHERE id = ? AND group_id = ?");
+        $del_stmt->execute([$old_featured, $group_id]);
+        $old_path = __DIR__ . '/../../../storage/uploads/grp_' . $old_featured . '.bin';
+        if (file_exists($old_path)) unlink($old_path);
+    }
+    
+    if ($clear_featured) {
+        // Do not add featured to extras
+    } else if (!empty($featured) && !empty($featured_type)) {
+        if ($extras === null) $extras = [];
+        $extras['featured'] = $featured;
+        $extras['featured_type'] = $featured_type;
+    } else if ($old_featured) {
+        // Retain existing if not cleared and no new one provided
+        if ($extras === null) $extras = [];
+        $extras['featured'] = $old_featured;
+        $extras['featured_type'] = $old_extras['featured_type'] ?? 'image/jpeg';
+    }    // Update the post and bump created_at to current time
     $stmt = $conn->prepare("UPDATE $table SET context = ?, extras = ?, created_at = CURRENT_TIMESTAMP WHERE id = ? AND groupid = ?");
     $stmt->execute([
         json_encode($context),

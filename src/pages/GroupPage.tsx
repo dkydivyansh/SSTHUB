@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Clock, Plus, X, Pencil, Eye, Trash2, Search, Loader2, Share2, Check, ExternalLink } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PostCard from '../components/PostCard';
+import ImageCropperModal from '../components/ImageCropperModal';
 
 export default function GroupPage() {
   const { groupId, tab } = useParams();
@@ -24,7 +25,13 @@ export default function GroupPage() {
   // Edit Group State
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editGroupData, setEditGroupData] = useState({ name: '', description: '', logo: '', type: 'public' });
+  const [editGroupLogoFile, setEditGroupLogoFile] = useState<File | null>(null);
+  const [clearLogo, setClearLogo] = useState(false);
   const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
+  
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [editGroupUploadProgress, setEditGroupUploadProgress] = useState(0);
+  const editLogoInputRef = useRef<HTMLInputElement>(null);
   
   // Share state
   const [copied, setCopied] = useState(false);
@@ -42,6 +49,13 @@ export default function GroupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
+  
+  const [featuredMedia, setFeaturedMedia] = useState<File | null>(null);
+  const [featuredPreview, setFeaturedPreview] = useState<string | null>(null);
+  const [featuredPreviewType, setFeaturedPreviewType] = useState<string | null>(null);
+  const [clearFeatured, setClearFeatured] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Desktop search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -332,6 +346,11 @@ export default function GroupPage() {
       setButtons([]);
       setModalError('');
       setPreviewMode(false);
+      setFeaturedMedia(null);
+      setFeaturedPreview(null);
+      setFeaturedPreviewType(null);
+      setClearFeatured(false);
+      setUploadProgress(0);
       setShowModal(true);
     }
   };
@@ -365,11 +384,21 @@ export default function GroupPage() {
       }
     }
 
+    const extrasObj: any = Object.keys(buttonsObj).length > 0 ? buttonsObj : {};
+    
+    if (featuredMedia) {
+      extrasObj.featured = URL.createObjectURL(featuredMedia);
+      extrasObj.featured_type = featuredMedia.type;
+    } else if (featuredPreview && !clearFeatured) {
+      extrasObj.featured = featuredPreview.replace('/api/group_attachment_get?id=', '');
+      extrasObj.featured_type = featuredPreviewType || (extrasObj.featured?.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
+    }
+
     return {
       id: 0,
       post_type: modalType,
       context: ctx,
-      extras: Object.keys(buttonsObj).length > 0 ? buttonsObj : null,
+      extras: Object.keys(extrasObj).length > 0 ? extrasObj : null,
       created_at: new Date().toISOString()
     };
   };
@@ -384,6 +413,38 @@ export default function GroupPage() {
     buttons.forEach(b => { if (b.label && b.url) buttonsObj[b.label] = b.url; });
 
     try {
+      let finalFeatured = '';
+      let finalFeaturedType = '';
+      
+      if (featuredMedia) {
+        const CHUNK_SIZE = 1024 * 1024;
+        const totalChunks = Math.ceil(featuredMedia.size / CHUNK_SIZE);
+        const fileUuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, featuredMedia.size);
+          const chunk = featuredMedia.slice(start, end);
+          
+          const formData = new FormData();
+          formData.append('file_uuid', fileUuid);
+          formData.append('chunk_index', i.toString());
+          formData.append('total_chunks', totalChunks.toString());
+          formData.append('group_id', groupId || '');
+          formData.append('original_name', featuredMedia.name);
+          formData.append('mime_type', featuredMedia.type || 'application/octet-stream');
+          formData.append('chunk', chunk);
+          
+          const uRes = await fetch('/api/group_attachment_upload', { method: 'POST', body: formData });
+          const uData = await uRes.json();
+          if (uData.status !== 'success') {
+            throw new Error(uData.message || 'Upload failed');
+          }
+          setUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
+        }
+        finalFeatured = fileUuid;
+        finalFeaturedType = featuredMedia.type;
+      }
+
       const res = await fetch('/api/add_post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -397,7 +458,10 @@ export default function GroupPage() {
           event_time: modalType === 'event' ? eventTime : undefined,
           address: modalType === 'event' && eventType === 'offline' ? address : undefined,
           rsvp_link: modalType === 'event' ? rsvpLink : undefined,
-          buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null
+          buttons: Object.keys(buttonsObj).length > 0 ? buttonsObj : null,
+          featured: finalFeatured || undefined,
+          featured_type: finalFeaturedType || undefined,
+          clear_featured: clearFeatured
         })
       });
       const result = await res.json();
@@ -512,25 +576,65 @@ export default function GroupPage() {
   const handleUpdateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdatingGroup(true);
+    
     try {
+      let finalLogo = editGroupData.logo;
+
+      if (clearLogo) {
+        finalLogo = '';
+      } else if (editGroupLogoFile) {
+        const CHUNK_SIZE = 1024 * 1024;
+        const totalChunks = Math.ceil(editGroupLogoFile.size / CHUNK_SIZE);
+        const fileUuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, editGroupLogoFile.size);
+          const chunk = editGroupLogoFile.slice(start, end);
+          
+          const formData = new FormData();
+          formData.append('file_uuid', fileUuid);
+          formData.append('chunk_index', i.toString());
+          formData.append('total_chunks', totalChunks.toString());
+          formData.append('group_id', groupId || '');
+          formData.append('original_name', editGroupLogoFile.name);
+          formData.append('mime_type', editGroupLogoFile.type);
+          formData.append('chunk', chunk);
+          
+          const uRes = await fetch('/api/group_attachment_upload', { method: 'POST', body: formData });
+          const uData = await uRes.json();
+          if (uData.status !== 'success') {
+            throw new Error(uData.message || 'Upload failed');
+          }
+          setEditGroupUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
+        }
+        finalLogo = fileUuid;
+      }
+
       const res = await fetch('/api/group_settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'update_group_details', 
-          group_id: groupId, 
-          ...editGroupData 
+        body: JSON.stringify({
+          action: 'update_group_details',
+          group_id: groupId,
+          name: editGroupData.name,
+          description: editGroupData.description,
+          logo: finalLogo,
+          type: editGroupData.type
         })
       });
       const json = await res.json();
       if (json.status === 'success') {
         setIsEditingGroup(false);
-        fetchData(); // refresh the page
+        setEditGroupLogoFile(null);
+        setClearLogo(false);
+        setEditGroupUploadProgress(0);
+        fetchData();
       } else {
-        alert(json.message);
+        alert(json.message || 'Failed to update group');
       }
     } catch (err) {
       console.error(err);
+      alert('Network error. Please try again.');
     } finally {
       setIsUpdatingGroup(false);
     }
@@ -810,6 +914,9 @@ export default function GroupPage() {
                       <button 
                         onClick={() => {
                           setEditGroupData({ name: groupInfo.name || '', description: groupInfo.description || '', logo: groupInfo.logo || '', type: groupInfo.type || 'public' });
+                          setEditGroupLogoFile(null);
+                          setClearLogo(false);
+                          setEditGroupUploadProgress(0);
                           setIsEditingGroup(true);
                         }} 
                         className="bg-black text-white px-4 py-2 font-black uppercase text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
@@ -818,7 +925,11 @@ export default function GroupPage() {
                       </button>
                     ) : (
                       <button 
-                        onClick={() => setIsEditingGroup(false)} 
+                        onClick={() => {
+                          setIsEditingGroup(false);
+                          setEditGroupLogoFile(null);
+                          setClearLogo(false);
+                        }} 
                         className="bg-white border-2 border-black px-4 py-2 font-black uppercase text-xs hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
                       >
                         Cancel
@@ -829,13 +940,62 @@ export default function GroupPage() {
                     <form onSubmit={handleUpdateGroup} className="flex flex-col gap-4">
                       <input type="text" placeholder="Group Name" value={editGroupData.name} onChange={e => setEditGroupData({...editGroupData, name: e.target.value})} className="border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" required />
                       <textarea placeholder="Description" value={editGroupData.description} onChange={e => setEditGroupData({...editGroupData, description: e.target.value})} className="border-4 border-black p-3 font-bold outline-none resize-none h-24 focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" />
-                      <input type="text" placeholder="Logo URI" value={editGroupData.logo} onChange={e => setEditGroupData({...editGroupData, logo: e.target.value})} className="border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" />
+                      
+                      <div className="flex flex-col gap-2">
+                        <label className="font-black uppercase tracking-widest text-xs">Group Logo</label>
+                        <div className="border-4 border-black p-4 flex flex-col gap-4 items-start">
+                          {(!clearLogo && (editGroupLogoFile || editGroupData.logo)) ? (
+                            <div className="relative group">
+                              <img 
+                                src={editGroupLogoFile ? URL.createObjectURL(editGroupLogoFile) : (editGroupData.logo.startsWith('http') || editGroupData.logo.startsWith('/api/') ? editGroupData.logo : `/api/group_attachment_get?id=${editGroupData.logo}`)} 
+                                alt="Logo Preview" 
+                                className="w-32 h-32 object-cover border-4 border-black" 
+                              />
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setEditGroupLogoFile(null);
+                                  setClearLogo(true);
+                                  if (editLogoInputRef.current) editLogoInputRef.current.value = '';
+                                }}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-2 border-2 border-black hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button 
+                              type="button" 
+                              onClick={() => editLogoInputRef.current?.click()}
+                              className="w-32 h-32 flex flex-col items-center justify-center gap-2 border-4 border-dashed border-gray-400 text-gray-500 font-black uppercase tracking-widest hover:border-black hover:text-black transition-all"
+                            >
+                              <Plus size={24} /> Add Logo
+                            </button>
+                          )}
+                          <input 
+                            type="file" 
+                            ref={editLogoInputRef} 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = () => setCropImageSrc(reader.result as string);
+                                reader.readAsDataURL(file);
+                                if (editLogoInputRef.current) editLogoInputRef.current.value = '';
+                              }
+                            }} 
+                          />
+                        </div>
+                      </div>
+
                       <select value={editGroupData.type} onChange={e => setEditGroupData({...editGroupData, type: e.target.value})} className="border-4 border-black p-3 font-black uppercase tracking-widest outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all">
                         <option value="public">Public Group</option>
                         <option value="private">Private Group</option>
                       </select>
                       <button type="submit" disabled={isUpdatingGroup} className="bg-emerald-500 text-black border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50">
-                        {isUpdatingGroup ? 'Saving...' : 'Save Changes'}
+                        {isUpdatingGroup ? (editGroupUploadProgress > 0 && editGroupUploadProgress < 100 ? `Uploading Logo... ${editGroupUploadProgress}%` : 'Saving...') : 'Save Changes'}
                       </button>
                     </form>
                   )}
@@ -926,8 +1086,63 @@ export default function GroupPage() {
                   
                   <div className="flex flex-col gap-1">
                     <label className="font-black uppercase tracking-widest text-xs">Content *</label>
-                    <textarea required value={modalContent} onChange={(e) => setModalContent(e.target.value)} className={`${inputClass} min-h-[160px] resize-y`} placeholder="Write your post here..." />
+                    <textarea required value={modalContent} onChange={(e) => setModalContent(e.target.value)} className={`border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all min-h-[160px] resize-y`} placeholder="Write your post here..." />
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">*bold*, _italic_, ~strike~, `code`</span>
+                  </div>
+
+                  {/* Featured Media */}
+                  <div className="flex flex-col gap-2">
+                    <label className="font-black uppercase tracking-widest text-xs">Featured Media (Optional)</label>
+                    <div className="border-4 border-black p-4 flex flex-col gap-4">
+                      {(featuredPreview || featuredMedia) ? (
+                        <div className="relative group">
+                          {((featuredMedia?.type.startsWith('video/') || featuredPreviewType?.startsWith('video/'))) ? (
+                            <video src={featuredMedia ? URL.createObjectURL(featuredMedia) : (featuredPreview as string)} controls className="w-full max-h-[300px] object-cover border-2 border-black" />
+                          ) : (
+                            <img src={featuredMedia ? URL.createObjectURL(featuredMedia) : (featuredPreview as string)} alt="Preview" className="w-full max-h-[300px] object-cover border-2 border-black" />
+                          )}
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setFeaturedMedia(null);
+                              setFeaturedPreview(null);
+                              setFeaturedPreviewType(null);
+                              setClearFeatured(true);
+                              if (fileInputRef.current) fileInputRef.current.value = '';
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-2 border-2 border-black hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          type="button" 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center justify-center gap-2 p-6 border-4 border-dashed border-gray-400 text-gray-500 font-black uppercase tracking-widest hover:border-black hover:text-black transition-all"
+                        >
+                          <Plus size={24} /> Add Image or Video
+                        </button>
+                      )}
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        accept="image/*,video/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 50 * 1024 * 1024) {
+                              setModalError('File size must be under 50MB');
+                              return;
+                            }
+                            setFeaturedMedia(file);
+                            setClearFeatured(false);
+                            setModalError('');
+                          }
+                        }} 
+                      />
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -982,7 +1197,7 @@ export default function GroupPage() {
                   </div>
 
                   <button type="submit" disabled={isSubmitting} className="bg-[#3B82F6] text-white p-4 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-4 border-black mt-2">
-                    {isSubmitting ? 'Posting...' : 'Post to Group'}
+                    {isSubmitting ? (uploadProgress > 0 && uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : 'Posting...') : 'Post to Group'}
                   </button>
                 </form>
               )}
@@ -991,6 +1206,17 @@ export default function GroupPage() {
         </div>
       )}
 
+      {cropImageSrc && (
+        <ImageCropperModal
+          imageSrc={cropImageSrc}
+          onCropDone={(file) => {
+            setEditGroupLogoFile(file);
+            setClearLogo(false);
+            setCropImageSrc(null);
+          }}
+          onCancel={() => setCropImageSrc(null)}
+        />
+      )}
     </div>
   );
 }

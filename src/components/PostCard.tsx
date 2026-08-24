@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, MapPin, Pencil, Trash2, Pin, PinOff } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Pencil, Trash2, Pin, PinOff, X, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import LinkPreview from './LinkPreview';
 
 interface PostCardProps {
@@ -81,6 +82,7 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
   
   const [isExpanded, setIsExpanded] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   
   const navigate = useNavigate();
@@ -248,6 +250,33 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
       )}
 
       <div className="p-3 md:p-4 flex flex-col gap-3 md:gap-4">
+        {extras?.featured && (
+          <div 
+            className="w-full aspect-video md:aspect-[21/9] bg-[#f4f4f5] border-4 border-black overflow-hidden flex items-center justify-center cursor-pointer relative group"
+            onClick={() => setShowLightbox(true)}
+          >
+            {extras.featured_type?.startsWith('video/') ? (
+              <>
+                <video 
+                  src={extras.featured?.startsWith('blob:') ? extras.featured : `/api/group_attachment_get?id=${extras.featured}`} 
+                  className="w-full h-full object-cover" 
+                  autoPlay loop muted playsInline
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <PlayCircle size={64} strokeWidth={1.5} className="text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] opacity-80 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </>
+            ) : (
+              <img 
+                src={extras.featured?.startsWith('blob:') ? extras.featured : `/api/group_attachment_get?id=${extras.featured}`} 
+                alt="Featured" 
+                className="w-full h-full object-cover" 
+              />
+            )}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+          </div>
+        )}
+
         {item.post_type === 'event' && (
           <div className="flex flex-col gap-2 self-start">
             <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-600 uppercase tracking-widest border-2 border-black p-2 bg-white">
@@ -292,7 +321,7 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
           </div>
         )}
 
-        {previewUrl && (
+        {previewUrl && !extras?.featured && (
           <LinkPreview url={previewUrl} />
         )}
 
@@ -320,6 +349,43 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
           </div>
         )}
       </div>
+
+      {showLightbox && extras?.featured && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4"
+          onClick={() => setShowLightbox(false)}
+        >
+          <button 
+            onClick={() => setShowLightbox(false)} 
+            className="absolute top-4 right-4 bg-white text-black p-2 border-4 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] transition-all z-[110]"
+          >
+             <X size={24} strokeWidth={3} />
+          </button>
+          <div className="w-full h-full max-w-5xl flex items-center justify-center relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {extras.featured_type?.startsWith('video/') ? (
+               <video src={extras.featured?.startsWith('blob:') ? extras.featured : `/api/group_attachment_get?id=${extras.featured}`} controls controlsList="nodownload" autoPlay className="max-w-full max-h-[90vh] border-4 border-black bg-black" />
+            ) : (
+               <TransformWrapper 
+                 initialScale={1}
+                 centerOnInit={true}
+                 minScale={0.5}
+                 maxScale={4}
+               >
+                 <TransformComponent 
+                   wrapperStyle={{ width: '100%', height: '100%' }}
+                   contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                 >
+                   <img 
+                     src={extras.featured?.startsWith('blob:') ? extras.featured : `/api/group_attachment_get?id=${extras.featured}`} 
+                     alt="Featured Media" 
+                     className="max-w-full max-h-[90vh] object-contain border-4 border-black cursor-zoom-in m-auto" 
+                   />
+                 </TransformComponent>
+               </TransformWrapper>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

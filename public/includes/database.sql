@@ -189,3 +189,15 @@ CREATE TABLE IF NOT EXISTS group_members (
     FOREIGN KEY (group_id) REFERENCES community_groups(id) ON DELETE CASCADE,
     UNIQUE KEY unique_membership (user_id, group_id)
 );
+
+CREATE TABLE IF NOT EXISTS group_attachments (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id INT NOT NULL,
+    group_id VARCHAR(50) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    file_size BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES community_groups(id) ON DELETE CASCADE
+);

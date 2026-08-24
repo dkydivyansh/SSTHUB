@@ -77,7 +77,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
+        if ($logo && !preg_match('/^https?:\/\//i', $logo) && strpos($logo, '/api/group_attachment_get') === false) {
+            $logo = '/api/group_attachment_get?id=' . $logo;
+        }
+
         try {
+            // Check old logo
+            $oldStmt = $conn->prepare("SELECT logo FROM community_groups WHERE id = ?");
+            $oldStmt->execute([$group_id]);
+            $oldRow = $oldStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($oldRow && $oldRow['logo'] && $oldRow['logo'] !== $logo) {
+                $oldLogo = $oldRow['logo'];
+                // Detect if it's an uploaded attachment
+                if (preg_match('/^\/api\/group_attachment_get\?id=([a-zA-Z0-9-]+)$/i', $oldLogo, $matches)) {
+                    $oldUuid = $matches[1];
+                    $oldPath = __DIR__ . '/../../../storage/uploads/grp_' . $oldUuid . '.bin';
+                    if (file_exists($oldPath)) {
+                        unlink($oldPath);
+                    }
+                    $delStmt = $conn->prepare("DELETE FROM group_attachments WHERE id = ?");
+                    $delStmt->execute([$oldUuid]);
+                }
+            }
+
             $stmt = $conn->prepare("UPDATE community_groups SET name = ?, description = ?, logo = ?, type = ? WHERE id = ?");
             $stmt->execute([$name, $description, $logo, $type, $group_id]);
             echo json_encode(['status' => 'success', 'message' => 'Group details updated']);

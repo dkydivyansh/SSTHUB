@@ -100,6 +100,16 @@ if (strpos($request_uri, '/api/attachments') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/group_attachment_upload') === 0) {
+    require_once __DIR__ . '/controller/api/group_attachment_upload.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/group_attachment_get') === 0) {
+    require_once __DIR__ . '/controller/api/group_attachment_get.php';
+    exit();
+}
+
 if ($request_uri === '/api/image_proxy') {
     require_once __DIR__ . '/controller/api/image_proxy.php';
     exit();

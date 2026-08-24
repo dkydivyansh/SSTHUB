@@ -89,12 +89,23 @@ try {
 
     // Verify the post exists and belongs to this group
     $table = $post_type === 'event' ? 'events' : 'announcements';
-    $stmt = $conn->prepare("SELECT id FROM $table WHERE id = ? AND groupid = ?");
+    $stmt = $conn->prepare("SELECT id, extras FROM $table WHERE id = ? AND groupid = ?");
     $stmt->execute([$post_id, $group_id]);
-    if (!$stmt->fetch()) {
+    $existing_post = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$existing_post) {
         http_response_code(404);
         echo json_encode(['status' => 'error', 'message' => 'Post not found in this group']);
         exit();
+    }
+    
+    $extras = json_decode($existing_post['extras'] ?? '{}', true);
+    $featured = $extras['featured'] ?? null;
+    
+    if ($featured) {
+        $del_stmt = $conn->prepare("DELETE FROM group_attachments WHERE id = ? AND group_id = ?");
+        $del_stmt->execute([$featured, $group_id]);
+        $file_path = __DIR__ . '/../../../storage/uploads/grp_' . $featured . '.bin';
+        if (file_exists($file_path)) unlink($file_path);
     }
 
     // Delete the post

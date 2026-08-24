@@ -138,6 +138,17 @@ try {
 
     $extras = count($extras) > 0 ? $extras : null;
 
+    $featured = trim($data['featured'] ?? '');
+    $featured_type = trim($data['featured_type'] ?? '');
+    
+    if (!empty($featured) && !empty($featured_type)) {
+        if ($extras === null) {
+            $extras = [];
+        }
+        $extras['featured'] = $featured;
+        $extras['featured_type'] = $featured_type;
+    }
+
     // Insert
     $table = $post_type === 'event' ? 'events' : 'announcements';
     $stmt = $conn->prepare("INSERT INTO $table (groupid, context, extras, created_by) VALUES (?, ?, ?, ?)");
