@@ -21,6 +21,8 @@ import GroupSearch from './pages/GroupSearch';
 import AdminDashboard from './pages/AdminDashboard';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import PageLoader from './components/PageLoader';
+import Calendar from './pages/Calendar';
+import Events from './pages/Events';
 
 import NotFound from './pages/NotFound';
 import CodeOfConduct from './pages/CodeOfConduct';
@@ -57,6 +59,9 @@ function AppRoutes() {
           <Route index element={<Dashboard />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/edit" element={<ProfileEdit />} />
+          <Route path="calendar/:year" element={<Calendar />} />
+          <Route path="calender/:year" element={<Navigate to="../calendar/2026-27" replace />} />
+          <Route path="events" element={<Events />} />
           <Route path="community" element={<Community />} />
           <Route path="community/:groupId" element={<Navigate to="announcements" replace />} />
           <Route path="community/:groupId/create" element={<CreateGroupPost />} />

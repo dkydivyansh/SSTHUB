@@ -166,23 +166,25 @@ export default function ProfileEdit() {
         <section>
           <h2 className="text-xl font-black uppercase tracking-widest text-[#3B82F6] mb-4 border-b-4 border-black pb-2">Basics</h2>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-2 lg:col-span-1">
-              <label className="font-black uppercase tracking-widest text-xs text-black/80">Select Your Group *</label>
-              <select
-                name="group"
-                value={formData.group}
-                onChange={handleChange}
-                className="bg-white text-black border-4 border-black p-3 text-sm font-bold outline-none focus:border-[#3B82F6] transition-colors cursor-pointer appearance-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                required
-              >
-                <option value="A">Group A</option>
-                <option value="B">Group B</option>
-                <option value="C">Group C</option>
-                <option value="D">Group D</option>
-              </select>
-            </div>
+            {userData?.type !== 'faculty' && (
+              <div className="flex flex-col gap-2 lg:col-span-1">
+                <label className="font-black uppercase tracking-widest text-xs text-black/80">Select Your Group *</label>
+                <select
+                  name="group"
+                  value={formData.group}
+                  onChange={handleChange}
+                  className="bg-white text-black border-4 border-black p-3 text-sm font-bold outline-none focus:border-[#3B82F6] transition-colors cursor-pointer appearance-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  required
+                >
+                  <option value="A">Group A</option>
+                  <option value="B">Group B</option>
+                  <option value="C">Group C</option>
+                  <option value="D">Group D</option>
+                </select>
+              </div>
+            )}
 
-            <div className="flex flex-col gap-2 lg:col-span-3">
+            <div className={`flex flex-col gap-2 ${userData?.type === 'faculty' ? 'lg:col-span-4' : 'lg:col-span-3'}`}>
               <label className="font-black uppercase tracking-widest text-xs text-black/80">Profile Description (Bio)</label>
               <textarea
                 name="description"

@@ -131,6 +131,7 @@ export default function MobileBottomNav() {
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Social</span>
           </Link>
 
+
           <Link to="/dash/profile" className={navItemClass('/dash/profile')}>
             <User size={20} className={isActive('/dash/profile') ? 'fill-[#3B82F6]' : ''} />
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Profile</span>

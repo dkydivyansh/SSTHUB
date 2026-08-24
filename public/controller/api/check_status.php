@@ -56,7 +56,8 @@ echo json_encode([
         'name' => $userData['name'],
         'first_name' => $firstName,
         'avatar' => $userData['avatar'],
-        'type' => $userData['type']
+        'type' => $userData['type'],
+        'faculty' => ($userData['type'] === 'faculty')
     ]
 ]);
 ?>

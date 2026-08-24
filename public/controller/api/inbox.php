@@ -61,13 +61,20 @@ try {
                 JOIN userdata ud ON p2.user_id = ud.user_id 
                 WHERE p2.conversation_id = c.id AND p2.user_id != ? 
                 LIMIT 1
-            ) as other_user_rollno
+            ) as other_user_rollno,
+            (
+                SELECT ud.type 
+                FROM participants p2 
+                JOIN userdata ud ON p2.user_id = ud.user_id 
+                WHERE p2.conversation_id = c.id AND p2.user_id != ? 
+                LIMIT 1
+            ) as other_user_type
         FROM participants p
         JOIN conversations c ON p.conversation_id = c.id
         WHERE p.user_id = ?
         ORDER BY COALESCE(last_message_time, c.created_at) DESC
     ");
-    $stmt->execute([$user_id, $user_id, $user_id, $user_id]);
+    $stmt->execute([$user_id, $user_id, $user_id, $user_id, $user_id]);
     $inbox = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode(['status' => 'success', 'data' => $inbox]);

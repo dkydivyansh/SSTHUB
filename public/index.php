@@ -135,6 +135,11 @@ if ($request_uri === '/api/dashboard_feed') {
     exit();
 }
 
+if ($request_uri === '/api/events_feed') {
+    require_once __DIR__ . '/controller/api/events_feed.php';
+    exit();
+}
+
 if ($request_uri === '/api/group_settings') {
     require_once __DIR__ . '/controller/api/group_settings.php';
     exit();
@@ -232,7 +237,42 @@ $html_file = __DIR__ . '/index.html';
 if (file_exists($html_file)) {
     // We are serving HTML, so override the JSON content type
     header('Content-Type: text/html');
-    readfile($html_file);
+    
+    $html_content = file_get_contents($html_file);
+    
+    // Default OG metadata
+    $og_title = "SSTHub";
+    $og_desc = "The central hub for students of the Scaler School of Technology. Connect, discover, and organize your campus life.";
+    $og_image = "https://" . $_SERVER['HTTP_HOST'] . "/HUB.png";
+    $og_url = "https://" . $_SERVER['HTTP_HOST'] . $request_uri;
+
+    // You can add dynamic logic here, for example querying $conn if $request_uri matches /post/xxx
+    // if (preg_match('#^/post/(\d+)#', $request_uri, $matches)) { ... }
+    
+    $dynamic_og = <<<HTML
+  <!-- Dynamic Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="{$og_url}" />
+  <meta property="og:title" content="{$og_title}" />
+  <meta property="og:description" content="{$og_desc}" />
+  <meta property="og:image" content="{$og_image}" />
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="{$og_url}" />
+  <meta property="twitter:title" content="{$og_title}" />
+  <meta property="twitter:description" content="{$og_desc}" />
+  <meta property="twitter:image" content="{$og_image}" />
+HTML;
+
+    // Replace the static OG tags block with our dynamic one
+    $html_content = preg_replace(
+        '/<!-- Open Graph \/ Facebook -->.*?<meta property="twitter:image" content="[^"]+" \/>/s',
+        $dynamic_og,
+        $html_content
+    );
+
+    echo $html_content;
 } else {
     http_response_code(404);
     echo json_encode([

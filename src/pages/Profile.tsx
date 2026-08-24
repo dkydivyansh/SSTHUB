@@ -129,10 +129,12 @@ export default function Profile() {
             <span className="truncate">{userData.email}</span>
           </div>
           
-          <div className="flex items-center gap-3 font-bold text-sm">
-            <Hash size={18} className="text-[#3B82F6] shrink-0" />
-            <span className="truncate">{userData.rollno || 'N/A'}</span>
-          </div>
+          {userData.rollno && (
+            <div className="flex items-center gap-3 font-bold text-sm">
+              <Hash size={18} className="text-[#3B82F6] shrink-0" />
+              <span className="truncate">{userData.rollno}</span>
+            </div>
+          )}
           
           {userData.batch && (
             <div className="flex items-center gap-3 font-bold text-sm">

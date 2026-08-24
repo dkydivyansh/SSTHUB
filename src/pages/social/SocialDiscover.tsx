@@ -212,7 +212,7 @@ export default function SocialDiscover() {
                 )}
               </div>
               <h3 className="font-black uppercase text-lg md:text-xl leading-tight truncate w-full text-center">{user.name}</h3>
-              <p className="font-bold text-[10px] md:text-xs uppercase tracking-widest text-black/50 mt-1 truncate max-w-full">{user.rollno || 'NO ROLL NO'}</p>
+              <p className="font-bold text-[10px] md:text-xs uppercase tracking-widest text-black/50 mt-1 truncate max-w-full">{user.rollno || user.type}</p>
               <div className="flex items-center gap-2 mt-4 text-xs font-black uppercase tracking-widest">
                 {user.batch && <span className="bg-[#f4f4f5] px-2 py-1 border-2 border-black">B{user.batch}</span>}
                 {user.group && <span className="bg-[#f4f4f5] px-2 py-1 border-2 border-black">G{user.group}</span>}
@@ -254,14 +254,18 @@ export default function SocialDiscover() {
               <p className="font-bold text-sm md:text-lg text-black/70 mb-4 md:mb-6 break-all w-full px-2">{selectedUser.email}</p>
               
               <div className="grid grid-cols-2 gap-3 md:gap-4 w-full mb-6 md:mb-8">
-                <div className="bg-[#f4f4f5] border-4 border-black p-2 md:p-3 flex flex-col justify-center">
-                  <p className="font-black text-lg md:text-xl break-all">{selectedUser.rollno || 'N/A'}</p>
-                  <p className="font-bold text-[9px] md:text-[10px] uppercase tracking-widest text-black/50 mt-1">Roll Number</p>
+                <div className={`bg-[#f4f4f5] border-4 border-black p-2 md:p-3 ${!selectedUser.batch ? 'col-span-2' : 'col-span-1'} flex flex-col justify-center`}>
+                  <p className="font-black text-lg md:text-xl break-all uppercase">{selectedUser.rollno || selectedUser.type}</p>
+                  <p className="font-bold text-[9px] md:text-[10px] uppercase tracking-widest text-black/50 mt-1">
+                    {selectedUser.rollno ? 'Roll Number' : 'User Role'}
+                  </p>
                 </div>
-                <div className="bg-[#f4f4f5] border-4 border-black p-2 md:p-3">
-                  <p className="font-black text-lg md:text-xl">{selectedUser.batch ? `${selectedUser.batch}-${selectedUser.group}` : 'N/A'}</p>
-                  <p className="font-bold text-[9px] md:text-[10px] uppercase tracking-widest text-black/50">Batch & Group</p>
-                </div>
+                {selectedUser.batch && (
+                  <div className="bg-[#f4f4f5] border-4 border-black p-2 md:p-3">
+                    <p className="font-black text-lg md:text-xl">{`${selectedUser.batch}-${selectedUser.group || ''}`}</p>
+                    <p className="font-bold text-[9px] md:text-[10px] uppercase tracking-widest text-black/50">Batch & Group</p>
+                  </div>
+                )}
               </div>
               
               <div className="grid grid-cols-3 gap-2 w-full">

@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Prevent tap highlight color on mobile */
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
 /* Brutalist Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 24px;

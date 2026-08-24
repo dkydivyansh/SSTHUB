@@ -14,9 +14,14 @@ export default function Hero() {
       || document.referrer.includes('android-app://');
     setIsInstalled(isStandalone);
 
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      (window as any).deferredPrompt = e;
     };
 
     const handleAppInstalled = () => {

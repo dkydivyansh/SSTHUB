@@ -33,11 +33,18 @@ export default function InstallPWAPrompt() {
       }
     }
 
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+      setShowPrompt(true);
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
       // Stash the event so it can be triggered later.
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      setDeferredPrompt(promptEvent);
+      (window as any).deferredPrompt = promptEvent;
       // Update UI notify the user they can install the PWA
       setShowPrompt(true);
     };
@@ -80,20 +87,20 @@ export default function InstallPWAPrompt() {
     <AnimatePresence>
       {showPrompt && (
         <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          className="fixed bottom-20 left-4 right-4 md:bottom-6 md:left-auto md:right-6 md:w-96 z-50 bg-[#3B82F6] border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3"
+          initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+          animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
+          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+          className="relative w-full bg-[#3B82F6] border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col sm:flex-row items-center justify-between gap-4 overflow-hidden flex-shrink-0"
         >
           <button 
             onClick={handleDismiss}
-            className="absolute -top-3 -right-3 bg-red-500 border-2 border-black p-1 hover:scale-110 transition-transform cursor-pointer"
+            className="absolute top-2 right-2 bg-red-500 border-2 border-black p-1 hover:scale-110 transition-transform cursor-pointer z-10"
           >
             <X size={16} className="text-white" strokeWidth={3} />
           </button>
           
-          <div className="flex items-start gap-4">
-            <div className="bg-white border-2 border-black p-2 flex-shrink-0">
+          <div className="flex items-start gap-4 pr-8 w-full sm:w-auto">
+            <div className="bg-white border-2 border-black p-2 flex-shrink-0 hidden sm:block">
               <Download className="w-8 h-8 text-black" strokeWidth={2.5} />
             </div>
             <div>
@@ -108,7 +115,7 @@ export default function InstallPWAPrompt() {
           
           <button
             onClick={handleInstallClick}
-            className="w-full bg-yellow-400 border-2 border-black py-2 font-black uppercase tracking-widest text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer mt-1 text-sm"
+            className="w-full sm:w-auto flex-shrink-0 whitespace-nowrap px-6 bg-yellow-400 border-2 border-black py-3 font-black uppercase tracking-widest text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer text-sm"
           >
             Install App
           </button>

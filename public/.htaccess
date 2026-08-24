@@ -5,7 +5,15 @@
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
-# Handle CORS for API requests
-Header set Access-Control-Allow-Origin "*"
-Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+<IfModule mod_headers.c>
+    # Handle CORS for API requests and static assets
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+<FilesMatch "\.(png|jpe?g|gif|ico|svg|json|webmanifest|css|js|txt)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+</FilesMatch>

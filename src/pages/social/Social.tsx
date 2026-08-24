@@ -712,9 +712,15 @@ export default function Social() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 max-w-full">
                             <div className="font-black truncate min-w-0 flex-shrink">{chat.other_user_name}</div>
-                            <div className="font-bold text-[9px] uppercase text-gray-500 bg-gray-200 px-1 border border-black whitespace-nowrap flex-shrink-0">
-                              {chat.other_user_rollno}
-                            </div>
+                            {chat.other_user_type === 'faculty' || !chat.other_user_rollno ? (
+                              <div className="font-bold text-[9px] uppercase text-white bg-[#3B82F6] px-1 border border-black whitespace-nowrap flex-shrink-0">
+                                {chat.other_user_type === 'faculty' ? 'FACULTY' : 'NO ROLL NO'}
+                              </div>
+                            ) : (
+                              <div className="font-bold text-[9px] uppercase text-gray-500 bg-gray-200 px-1 border border-black whitespace-nowrap flex-shrink-0">
+                                {chat.other_user_rollno}
+                              </div>
+                            )}
                           </div>
                           <div className="text-xs font-bold text-gray-500 truncate">{getPreviewText(chat.last_message)}</div>
                         </div>
@@ -761,9 +767,15 @@ export default function Social() {
                               <div className="flex-1 min-w-0 opacity-75">
                                 <div className="flex items-center gap-2 max-w-full">
                                   <div className="font-black truncate min-w-0 flex-shrink">{chat.other_user_name}</div>
-                                  <div className="font-bold text-[9px] uppercase text-gray-500 bg-gray-200 px-1 border border-black whitespace-nowrap flex-shrink-0">
-                                    {chat.other_user_rollno}
-                                  </div>
+                                  {chat.other_user_type === 'faculty' || !chat.other_user_rollno ? (
+                                    <div className="font-bold text-[9px] uppercase text-white bg-[#3B82F6] px-1 border border-black whitespace-nowrap flex-shrink-0">
+                                      {chat.other_user_type === 'faculty' ? 'FACULTY' : 'NO ROLL NO'}
+                                    </div>
+                                  ) : (
+                                    <div className="font-bold text-[9px] uppercase text-gray-500 bg-gray-200 px-1 border border-black whitespace-nowrap flex-shrink-0">
+                                      {chat.other_user_rollno}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="text-xs font-bold text-gray-500 truncate">{getPreviewText(chat.last_message)}</div>
                               </div>
@@ -846,9 +858,15 @@ export default function Social() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 max-w-full">
                     <div className="font-black truncate text-base md:text-lg min-w-0 flex-shrink">{activeChat.other_user_name}</div>
-                    <div className="font-bold text-[10px] md:text-xs uppercase bg-black text-white px-1.5 py-0.5 border border-black whitespace-nowrap flex-shrink-0">
-                      {activeChat.other_user_rollno}
-                    </div>
+                    {activeChat.other_user_type === 'faculty' || !activeChat.other_user_rollno ? (
+                      <div className="font-bold text-[10px] md:text-xs uppercase bg-[#3B82F6] text-white px-1.5 py-0.5 border border-black whitespace-nowrap flex-shrink-0">
+                        {activeChat.other_user_type === 'faculty' ? 'FACULTY' : 'NO ROLL NO'}
+                      </div>
+                    ) : (
+                      <div className="font-bold text-[10px] md:text-xs uppercase bg-black text-white px-1.5 py-0.5 border border-black whitespace-nowrap flex-shrink-0">
+                        {activeChat.other_user_rollno}
+                      </div>
+                    )}
                   </div>
                   <Link to={`/u/${activeChat.other_user_rollno}`} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-widest">
                     View Profile

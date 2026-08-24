@@ -24,8 +24,8 @@ export default function DesktopSidebar() {
 
   const navItemClass = (path: string) => `
     flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
-    ${isActive(path) 
-      ? 'bg-[#3B82F6] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1' 
+    ${isActive(path)
+      ? 'bg-[#3B82F6] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1'
       : 'bg-white text-black hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
     }
   `;
@@ -37,22 +37,22 @@ export default function DesktopSidebar() {
 
   const adminNavItemClass = (tab: string) => `
     flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
-    ${adminTab === tab 
-      ? (tab === 'users' ? 'bg-[#3B82F6]' : tab === 'faculty' ? 'bg-red-500' : 'bg-emerald-500') + ' text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1' 
+    ${adminTab === tab
+      ? (tab === 'users' ? 'bg-[#3B82F6]' : tab === 'faculty' ? 'bg-red-500' : 'bg-emerald-500') + ' text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1'
       : 'bg-white text-black hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
     }
   `;
 
   const groupNavItemClass = (tab: string) => `
     flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
-    ${activeGroupTab === tab 
-      ? 'bg-[#3B82F6] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1' 
+    ${activeGroupTab === tab
+      ? 'bg-[#3B82F6] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1'
       : 'bg-white text-black hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
     }
   `;
 
   return (
-    <aside 
+    <aside
       onMouseEnter={() => setIsCollapsed(false)}
       onMouseLeave={() => setIsCollapsed(true)}
       className={`hidden lg:flex flex-col bg-[#FFF5E1] border-r-4 border-black h-screen p-8 sticky top-0 transition-all duration-300 z-40 ${isCollapsed ? 'w-28 items-center px-4' : 'w-80'}`}
@@ -148,6 +148,7 @@ export default function DesktopSidebar() {
               </div>
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Social</span>
             </Link>
+
             <Link to="/dash/profile" className={`${navItemClass('/dash/profile')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
               <User size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Profile</span>

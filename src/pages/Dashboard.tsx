@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck, FileText, StickyNote } from 'lucide-react';
+import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck, FileText, StickyNote, PartyPopper } from 'lucide-react';
 import PostCard from '../components/PostCard';
 
 export default function Dashboard() {
@@ -130,27 +130,34 @@ export default function Dashboard() {
 
 
       {/* Quick Links Section */}
-      <div className="w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-4">
-        {[
-          { icon: Calendar, label: 'Academic Calendar' },
-          { icon: Clock, label: 'Weekly Schedule' },
-          { icon: BookOpen, label: 'Syllabus' },
-          { icon: ClipboardCheck, label: 'Attendance' },
-          { icon: FileText, label: 'Assignments' },
-          { icon: StickyNote, label: 'Notes' }
-        ].map((btn, i) => (
-          <button 
-            key={i}
-            disabled
-            className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-gray-100 border-4 border-black p-3 sm:p-6 opacity-60 cursor-not-allowed hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
-          >
-            <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-yellow-400 text-black text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-1 sm:px-2 py-0.5 sm:py-1 border-2 border-black">
-              SOON
-            </div>
-            <btn.icon className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1" />
-            <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">{btn.label}</span>
-          </button>
-        ))}
+      <div className="w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-4">
+        <Link 
+          to="/dash/calendar/2026-27"
+          className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-white border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group"
+        >
+          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-emerald-400 text-black text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-1 sm:px-2 py-0.5 sm:py-1 border-2 border-black group-hover:bg-[#3B82F6] group-hover:text-white transition-colors">
+            2026-27
+          </div>
+          <Calendar className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1 group-hover:text-[#3B82F6] transition-colors" />
+          <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">Academic Calendar</span>
+        </Link>
+        <Link 
+          to="/dash/events"
+          className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-white border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group"
+        >
+          <PartyPopper className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1 group-hover:text-[#3B82F6] transition-colors" />
+          <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">Events</span>
+        </Link>
+        <button disabled className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-gray-100 border-4 border-black p-3 sm:p-6 opacity-60 cursor-not-allowed hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
+          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-yellow-400 text-black text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-1 sm:px-2 py-0.5 sm:py-1 border-2 border-black">SOON</div>
+          <BookOpen className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1" />
+          <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">Syllabus</span>
+        </button>
+        <button disabled className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-gray-100 border-4 border-black p-3 sm:p-6 opacity-60 cursor-not-allowed hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
+          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-yellow-400 text-black text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-1 sm:px-2 py-0.5 sm:py-1 border-2 border-black">SOON</div>
+          <FileText className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1" />
+          <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">Homework</span>
+        </button>
       </div>
 
       {/* Dashboard Activity Feed */}

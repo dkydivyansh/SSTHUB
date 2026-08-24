@@ -97,8 +97,16 @@ if (!$email) {
     exit();
 }
 
-if (!preg_match('/@sst\.scaler\.com$/i', $email)) {
-    header('Location: /login?error=' . urlencode('Only @sst.scaler.com emails are allowed.'));
+$is_faculty = false;
+$user_type = 'member';
+
+if (preg_match('/@sst\.scaler\.com$/i', $email)) {
+    $user_type = 'member';
+} elseif (preg_match('/@scaler\.com$/i', $email)) {
+    $user_type = 'faculty';
+    $is_faculty = true;
+} else {
+    header('Location: /login?error=' . urlencode('Only @sst.scaler.com or @scaler.com emails are allowed.'));
     exit();
 }
 
@@ -128,8 +136,8 @@ if (!$user) {
     $user_id = $conn->lastInsertId();
 
     // Insert into userdata
-    $stmt = $conn->prepare("INSERT INTO userdata (user_id, name, avatar, rollno, batch, status, type) VALUES (?, ?, ?, ?, ?, 'pending', 'member')");
-    $stmt->execute([$user_id, $name, $picture, $rollno, $batch]);
+    $stmt = $conn->prepare("INSERT INTO userdata (user_id, name, avatar, rollno, batch, status, type) VALUES (?, ?, ?, ?, ?, 'pending', ?)");
+    $stmt->execute([$user_id, $name, $picture, $rollno, $batch, $user_type]);
 
     // Auto-join SST General group if it exists
     $stmt = $conn->prepare("SELECT id FROM community_groups WHERE name = 'SST General' LIMIT 1");

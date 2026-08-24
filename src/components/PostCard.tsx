@@ -55,7 +55,9 @@ const formatText = (text: string) => {
 };
 
 function timeAgo(dateString: string) {
-  const date = new Date(dateString.replace(/-/g, '/'));
+  // Ensure the DB timestamp is treated as UTC
+  const safeDateStr = dateString.includes('T') ? dateString : dateString.replace(' ', 'T') + 'Z';
+  const date = new Date(safeDateStr);
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
 
   let interval = seconds / 31536000;
@@ -145,7 +147,7 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
   };
 
   return (
-    <div className={`relative bg-white border-4 border-black mb-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] ${item.pinned ? 'ring-4 ring-yellow-400 ring-offset-4' : ''}`}>
+    <div className={`relative bg-white border-4 border-black mb-4 md:mb-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] md:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] ${item.pinned ? 'ring-4 ring-yellow-400 ring-offset-4' : ''}`}>
       
       {isDashboard && item.group_name && (
         <div className="flex items-center gap-2 bg-[#f4f4f5] border-b-4 border-black p-2 px-4 cursor-pointer" onClick={() => navigate(`/dash/community/${item.groupid}`)}>
@@ -245,7 +247,7 @@ export default function PostCard({ item, isAdmin, isDashboard, onDelete, onPin }
         </div>
       )}
 
-      <div className="p-4 flex flex-col gap-4">
+      <div className="p-3 md:p-4 flex flex-col gap-3 md:gap-4">
         {item.post_type === 'event' && (
           <div className="flex flex-col gap-2 self-start">
             <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-600 uppercase tracking-widest border-2 border-black p-2 bg-white">

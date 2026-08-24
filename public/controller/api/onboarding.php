@@ -32,7 +32,7 @@ if ($status === 'invalid_session' || $status === 'disabled') {
 }
 
 // Check current status in DB to ensure they are pending
-$stmt = $conn->prepare("SELECT status FROM userdata WHERE user_id = ?");
+$stmt = $conn->prepare("SELECT status, type FROM userdata WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $currentUser = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$currentUser || $currentUser['status'] !== 'pending') {
@@ -41,11 +41,17 @@ if (!$currentUser || $currentUser['status'] !== 'pending') {
     exit();
 }
 
+$is_faculty = ($currentUser['type'] === 'faculty');
 $group = $input['group'] ?? null;
-if (!in_array($group, ['A', 'B', 'C', 'D'])) {
+
+if (!$is_faculty && !in_array($group, ['A', 'B', 'C', 'D'])) {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Invalid group selected. Must be A, B, C, or D.']);
     exit();
+}
+
+if ($is_faculty) {
+    $group = null;
 }
 
 $github = htmlspecialchars(trim($input['github'] ?? ''));
