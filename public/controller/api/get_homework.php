@@ -74,6 +74,16 @@ try {
         if ($data) {
             $data['extras'] = $data['extras'] ? json_decode($data['extras'], true) : null;
             $data['user_submission'] = $data['user_submission'] ? json_decode($data['user_submission'], true) : null;
+            
+            // SECURITY: Strip correct answers for students on assignment types
+            if (!$is_admin && $data['extras'] && isset($data['extras']['type']) && $data['extras']['type'] === 'assignment') {
+                if (isset($data['extras']['questions']) && is_array($data['extras']['questions'])) {
+                    foreach ($data['extras']['questions'] as &$question) {
+                        unset($question['correctAnswers']);
+                        unset($question['stringAnswers']);
+                    }
+                }
+            }
         } else {
             http_response_code(404);
             echo json_encode(['status' => 'error', 'message' => 'Homework not found']);
@@ -82,6 +92,7 @@ try {
     } else {
         $sql = "
             SELECT h.*, 
+                   s.submission as user_submission,
                    CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as is_submitted
             FROM homework h
             LEFT JOIN homework_submissions s ON h.id = s.homework_id AND s.user_id = :user_id
@@ -98,6 +109,7 @@ try {
 
         foreach ($data as &$row) {
             $row['extras'] = $row['extras'] ? json_decode($row['extras'], true) : null;
+            $row['user_submission'] = $row['user_submission'] ? json_decode($row['user_submission'], true) : null;
         }
     }
 

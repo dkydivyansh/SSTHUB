@@ -23,6 +23,9 @@ import FacultyDashboard from './pages/FacultyDashboard';
 import FacultyClassPage from './pages/FacultyClassPage';
 import ClassExtrasPage from './pages/ClassExtrasPage';
 import HomeworkCreatePage from './pages/HomeworkCreatePage';
+import StudentClassesPage from './pages/StudentClassesPage';
+import StudentClassPage from './pages/StudentClassPage';
+import StudentHomeworkViewer from './pages/StudentHomeworkViewer';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import ClassLayout from './components/dashboard/ClassLayout';
 import PageLoader from './components/PageLoader';
@@ -62,6 +65,8 @@ function AppRoutes() {
         
         <Route path="/dash" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />
+          <Route path="class" element={<StudentClassesPage />} />
+          <Route path="class/:classId" element={<StudentClassPage />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/edit" element={<ProfileEdit />} />
           <Route path="calendar/:year" element={<Calendar />} />
@@ -75,6 +80,9 @@ function AppRoutes() {
           <Route path="social" element={<Social />} />
           <Route path="social/discover" element={<SocialDiscover />} />
         </Route>
+        
+        {/* Distraction-Free Homework Viewer (No Sidebar) */}
+        <Route path="/dash/class/:classId/homework/:homeworkId" element={<StudentHomeworkViewer />} />
 
         <Route path="/admindash" element={<DashboardLayout />}>
           <Route index element={<Navigate to="users" replace />} />

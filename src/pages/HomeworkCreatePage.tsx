@@ -1,6 +1,6 @@
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Maximize2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Maximize2, X, Paperclip, ExternalLink } from 'lucide-react';
 import VisualEditor from '../components/VisualEditor';
 
 type QuestionType = 'string' | 'single_select' | 'multi_select';
@@ -31,6 +31,18 @@ export default function HomeworkCreatePage() {
   
   // Assignment Data
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [attachments, setAttachments] = useState<{name: string, url: string}[]>([]);
+
+  useEffect(() => {
+    // Load Google API scripts
+    const script1 = document.createElement('script');
+    script1.src = 'https://apis.google.com/js/api.js';
+    document.body.appendChild(script1);
+    
+    const script2 = document.createElement('script');
+    script2.src = 'https://accounts.google.com/gsi/client';
+    document.body.appendChild(script2);
+  }, []);
 
   useEffect(() => {
     if (homeworkId) {
@@ -46,12 +58,15 @@ export default function HomeworkCreatePage() {
               // Convert to datetime-local format (YYYY-MM-DDTHH:mm)
               setDeadline(hw.expires_at.substring(0, 16));
             }
-            if (hw.extras) {
-              setExtraType(hw.extras.type || 'none');
-              if (hw.extras.questions) {
-                setQuestions(hw.extras.questions);
-              }
-            } else {
+              if (hw.extras) {
+                setExtraType(hw.extras.type || 'none');
+                if (hw.extras.questions) {
+                  setQuestions(hw.extras.questions);
+                }
+                if (hw.extras.attachments) {
+                  setAttachments(hw.extras.attachments);
+                }
+              } else {
               setExtraType('none');
             }
           }
@@ -84,13 +99,10 @@ export default function HomeworkCreatePage() {
         extras: null
       };
 
-      if (extraType === 'assignment') {
-        payload.extras = {
-          type: 'assignment',
-          questions
-        };
-      } else if (extraType === 'media') {
-        payload.extras = { type: 'media' }; 
+      payload.extras = {
+        type: extraType,
+        questions: extraType === 'assignment' ? questions : [],
+        attachments: attachments
       };
 
       const url = homeworkId ? '/api/homework/edit' : '/api/homework/create';
@@ -116,6 +128,41 @@ export default function HomeworkCreatePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDrivePicker = () => {
+    const API_KEY = 'AIzaSyDoqhA63ZGJ2PArFx5rJ7uhxcpaFlUlVjg';
+    const CLIENT_ID = '395027667845-rnn22t43fi63jqoj6muqalemp1gt0ugs.apps.googleusercontent.com';
+    
+    const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: (tokenResponse: any) => {
+        if (tokenResponse.error !== undefined) {
+          throw tokenResponse;
+        }
+        (window as any).gapi.load('picker', () => {
+          const picker = new (window as any).google.picker.PickerBuilder()
+            .addView((window as any).google.picker.ViewId.DOCS)
+            .addView(new (window as any).google.picker.DocsUploadView())
+            .setOAuthToken(tokenResponse.access_token)
+            .setDeveloperKey(API_KEY)
+            .setCallback((data: any) => {
+              if (data.action === (window as any).google.picker.Action.PICKED) {
+                const doc = data.docs[0];
+                setAttachments(prev => [...prev, { name: doc.name, url: doc.url }]);
+              }
+            })
+            .build();
+          picker.setVisible(true);
+        });
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: '' }); // allow immediate popup if already authorized
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   // Assignment Builder Helpers
@@ -261,6 +308,38 @@ export default function HomeworkCreatePage() {
                 onChange={setContent} 
                 placeholder="Write instructions here..." 
               />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="font-black uppercase tracking-widest text-sm flex items-center justify-between">
+                <span>Attachments</span>
+                <button 
+                  onClick={handleDrivePicker}
+                  className="flex items-center gap-1 text-purple-600 hover:underline text-xs"
+                >
+                  <Paperclip size={14} /> Add from Drive
+                </button>
+              </label>
+              
+              {attachments.length === 0 ? (
+                <div className="border-4 border-black border-dashed p-6 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
+                  <span className="font-bold text-sm uppercase tracking-widest">No attachments</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {attachments.map((att, i) => (
+                    <div key={i} className="flex items-center justify-between border-4 border-black p-3 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                      <a href={att.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-bold text-sm hover:text-purple-600 truncate mr-4">
+                        <ExternalLink size={16} className="shrink-0" />
+                        <span className="truncate">{att.name}</span>
+                      </a>
+                      <button onClick={() => removeAttachment(i)} className="text-red-500 hover:text-red-700 shrink-0">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button 

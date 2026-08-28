@@ -51,7 +51,7 @@ if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
 }
 
 // Fetch homework and check deadline
-$stmt = $conn->prepare("SELECT expires_at FROM homework WHERE id = :hid AND class_id = :cid");
+$stmt = $conn->prepare("SELECT extras, expires_at FROM homework WHERE id = :hid AND class_id = :cid");
 $stmt->execute([':hid' => $homework_id, ':cid' => $class_id]);
 $homework = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -71,7 +71,61 @@ if ($homework['expires_at']) {
 }
 
 try {
-    $submissionJson = json_encode($submission);
+    $extras = $homework['extras'] ? json_decode($homework['extras'], true) : [];
+    $type = $extras['type'] ?? 'media';
+    
+    $finalSubmission = $submission;
+    
+    // Auto-Grading Logic for assignments
+    if ($type === 'assignment' && isset($extras['questions']) && is_array($extras['questions'])) {
+        $questions = $extras['questions'];
+        $userAnswers = $submission['answers'] ?? []; // Expected format: ['q1_id' => ['opt1'], 'q2_id' => ['str_answer']]
+        
+        $totalQuestions = count($questions);
+        $correctCount = 0;
+
+        foreach ($questions as $q) {
+            $qId = $q['id'];
+            $qType = $q['type'];
+            
+            if (!isset($userAnswers[$qId])) continue;
+            $uAns = $userAnswers[$qId];
+            
+            if ($qType === 'single' || $qType === 'multi') {
+                $cAns = $q['correctAnswers'] ?? [];
+                sort($uAns);
+                sort($cAns);
+                if ($uAns == $cAns) $correctCount++;
+            } else if ($qType === 'string') {
+                $cAnsList = $q['stringAnswers'] ?? [];
+                $caseSensitive = $q['caseSensitive'] ?? false;
+                $uAnsStr = isset($uAns[0]) ? trim((string)$uAns[0]) : '';
+                
+                $matched = false;
+                foreach ($cAnsList as $cAnsStr) {
+                    $cAnsStr = trim((string)$cAnsStr);
+                    if ($caseSensitive) {
+                        if ($uAnsStr === $cAnsStr) $matched = true;
+                    } else {
+                        if (strtolower($uAnsStr) === strtolower($cAnsStr)) $matched = true;
+                    }
+                    if ($matched) break;
+                }
+                if ($matched) $correctCount++;
+            }
+        }
+
+        $score = $totalQuestions > 0 ? round(($correctCount / $totalQuestions) * 100) : 0;
+        
+        $finalSubmission = [
+            'answers' => $userAnswers,
+            'score' => $score,
+            'correctCount' => $correctCount,
+            'totalQuestions' => $totalQuestions
+        ];
+    }
+    
+    $submissionJson = json_encode($finalSubmission);
     
     // Insert or update (if already exists, overwrite it)
     $stmt = $conn->prepare("
@@ -86,7 +140,7 @@ try {
         ':submission' => $submissionJson
     ]);
 
-    echo json_encode(['status' => 'success', 'message' => 'Homework submitted successfully']);
+    echo json_encode(['status' => 'success', 'message' => 'Homework submitted successfully', 'score' => $finalSubmission['score'] ?? null]);
 } catch (PDOException $e) {
     error_log("Submit homework error: " . $e->getMessage());
     http_response_code(500);

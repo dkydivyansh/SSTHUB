@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info, BookOpen, GraduationCap } from 'lucide-react';
+import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info, BookOpen } from 'lucide-react';
 import { useUnreadCounts } from '../../hooks/useUnreadCounts';
 import { useGroupUnreadCounts } from '../../hooks/useGroupUnreadCounts';
 
@@ -140,13 +140,6 @@ export default function MobileBottomNav({ userData }: MobileBottomNavProps) {
             </div>
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Social</span>
           </Link>
-
-          {(userData?.type === 'faculty' || userData?.type === 'admin') && (
-            <Link to="/faculty" className={navItemClass('/faculty')}>
-              <GraduationCap size={20} className={isActive('/faculty') ? 'fill-[#3B82F6]' : ''} />
-              <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Classes</span>
-            </Link>
-          )}
 
           <Link to="/dash/profile" className={navItemClass('/dash/profile')}>
             <User size={20} className={isActive('/dash/profile') ? 'fill-[#3B82F6]' : ''} />

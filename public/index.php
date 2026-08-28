@@ -140,6 +140,21 @@ if (strpos($request_uri, '/api/faculty/classes') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/student/classes') === 0) {
+    require_once __DIR__ . '/controller/api/student_classes.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/class_invite_info') === 0) {
+    require_once __DIR__ . '/controller/api/class_invite_info.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/join_class') === 0) {
+    require_once __DIR__ . '/controller/api/join_class.php';
+    exit();
+}
+
 if (strpos($request_uri, '/api/homework/create') === 0) {
     require_once __DIR__ . '/controller/api/create_homework.php';
     exit();
@@ -147,6 +162,11 @@ if (strpos($request_uri, '/api/homework/create') === 0) {
 
 if (strpos($request_uri, '/api/homework/edit') === 0) {
     require_once __DIR__ . '/controller/api/edit_homework.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/submit_homework') === 0) {
+    require_once __DIR__ . '/controller/api/submit_homework.php';
     exit();
 }
 

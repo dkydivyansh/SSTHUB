@@ -24,9 +24,11 @@ export default function ClassExtrasPage() {
   }, [classId]);
 
   const handleCopyLink = () => {
-    // For now, generating a dummy invite link based on classId
-    const link = `${window.location.origin}/invite/${classId}-secret`;
-    navigator.clipboard.writeText(link);
+    // Generate full invite link
+    const inviteLink = classData?.invitecode 
+      ? `${window.location.origin}/dash/class?invite=${classData.invitecode}`
+      : '';
+    navigator.clipboard.writeText(inviteLink);
     alert('Invite link copied to clipboard!');
   };
 
