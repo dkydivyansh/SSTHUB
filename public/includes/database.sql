@@ -201,3 +201,59 @@ CREATE TABLE IF NOT EXISTS group_attachments (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (group_id) REFERENCES community_groups(id) ON DELETE CASCADE
 );
+
+-- Class Tables
+CREATE TABLE IF NOT EXISTS classes (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    invitecode VARCHAR(16) UNIQUE NOT NULL,
+    logo VARCHAR(255),
+    description TEXT,
+    extras JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS classadmin (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    class_id VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS class_members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    class_id VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_class_membership (user_id, class_id)
+);
+
+-- Homework Tables
+CREATE TABLE IF NOT EXISTS homework (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    class_id VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content LONGTEXT,
+    extras JSON,
+    status ENUM('draft', 'published') DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS homework_submissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    class_id VARCHAR(50) NOT NULL,
+    homework_id INT NOT NULL,
+    submission JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (homework_id) REFERENCES homework(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_submission (user_id, homework_id)
+);

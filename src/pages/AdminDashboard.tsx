@@ -8,12 +8,13 @@ export default function AdminDashboard() {
   let activeTab = 'users';
   if (location.pathname.includes('/faculty')) activeTab = 'faculty';
   if (location.pathname.includes('/groups')) activeTab = 'groups';
+  if (location.pathname.includes('/classes')) activeTab = 'classes';
 
   useEffect(() => {
     const tabName = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
     document.title = `${tabName} Admin - SST Hub`;
   }, [activeTab]);
-  
+
   // -- USERS STATE --
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -21,9 +22,9 @@ export default function AdminDashboard() {
   const [filterType, setFilterType] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [disabledMsgPrompt, setDisabledMsgPrompt] = useState<{userId: number, name: string} | null>(null);
+  const [disabledMsgPrompt, setDisabledMsgPrompt] = useState<{ userId: number, name: string } | null>(null);
   const [disabledMsg, setDisabledMsg] = useState('');
-  const [viewDisabledMsg, setViewDisabledMsg] = useState<{name: string, msg: string} | null>(null);
+  const [viewDisabledMsg, setViewDisabledMsg] = useState<{ name: string, msg: string } | null>(null);
 
   // -- FACULTY STATE --
   const [showAddFaculty, setShowAddFaculty] = useState(false);
@@ -39,6 +40,15 @@ export default function AdminDashboard() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupData, setNewGroupData] = useState({ name: '', description: '', logo: '', type: 'public', admins: '' });
   const [manageAdminsGroup, setManageAdminsGroup] = useState<any | null>(null);
+
+  // -- CLASSES STATE --
+  const [classes, setClasses] = useState<any[]>([]);
+  const [classesLoading, setClassesLoading] = useState(false);
+  const [classSearch, setClassSearch] = useState('');
+
+  const [showCreateClass, setShowCreateClass] = useState(false);
+  const [newClassData, setNewClassData] = useState({ name: '', description: '', logo: '', admins: '' });
+  const [manageAdminsClass, setManageAdminsClass] = useState<any | null>(null);
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
   const [adminSearchResults, setAdminSearchResults] = useState<any[]>([]);
   const [searchingAdmins, setSearchingAdmins] = useState(false);
@@ -80,16 +90,33 @@ export default function AdminDashboard() {
     }
   }, [groupSearch]);
 
+  const fetchClasses = useCallback(async () => {
+    setClassesLoading(true);
+    try {
+      const res = await fetch(`/api/admin/classes?search=${encodeURIComponent(classSearch)}`);
+      const json = await res.json();
+      if (json.status === 'success') {
+        setClasses(json.data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setClassesLoading(false);
+    }
+  }, [classSearch]);
+
   useEffect(() => {
     if (activeTab === 'groups') {
       fetchGroups();
+    } else if (activeTab === 'classes') {
+      fetchClasses();
     } else {
       fetchUsers();
     }
-  }, [fetchUsers, fetchGroups, activeTab]);
+  }, [fetchUsers, fetchGroups, fetchClasses, activeTab]);
 
   useEffect(() => {
-    if (!adminSearchQuery || !manageAdminsGroup) {
+    if (!adminSearchQuery || (!manageAdminsGroup && !manageAdminsClass)) {
       setAdminSearchResults([]);
       return;
     }
@@ -108,7 +135,7 @@ export default function AdminDashboard() {
       }
     }, 300);
     return () => clearTimeout(delay);
-  }, [adminSearchQuery, manageAdminsGroup]);
+  }, [adminSearchQuery, manageAdminsGroup, manageAdminsClass]);
 
   useEffect(() => {
     if (!addFacultySearchQuery || !showAddFaculty) {
@@ -266,24 +293,98 @@ export default function AdminDashboard() {
     setManageAdminsGroup({ ...manageAdminsGroup, admins: manageAdminsGroup.admins.filter((a: number) => a !== id) });
   };
 
+  // -- CLASS ACTIONS --
+  const handleCreateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const adminArray = newClassData.admins.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    try {
+      const res = await fetch('/api/admin/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', ...newClassData, admins: adminArray })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setShowCreateClass(false);
+        setNewClassData({ name: '', description: '', logo: '', admins: '' });
+        fetchClasses();
+      } else {
+        alert(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteClass = async (id: string) => {
+    if (!confirm('Are you absolutely sure you want to delete this class?')) return;
+    try {
+      const res = await fetch('/api/admin/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        fetchClasses();
+      } else {
+        alert(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateClassAdmins = async () => {
+    if (!manageAdminsClass) return;
+    try {
+      const res = await fetch('/api/admin/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_admins', id: manageAdminsClass.id, admins: manageAdminsClass.admins })
+      });
+      const json = await res.json();
+      if (json.status === 'success') {
+        setManageAdminsClass(null);
+        fetchClasses();
+      } else {
+        alert(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const addClassAdmin = (id: number) => {
+    if (!isNaN(id) && !manageAdminsClass.admins.includes(id)) {
+      setManageAdminsClass({ ...manageAdminsClass, admins: [...manageAdminsClass.admins, id] });
+    }
+    setAdminSearchQuery('');
+    setAdminSearchResults([]);
+  };
+
+  const removeClassAdmin = (id: number) => {
+    setManageAdminsClass({ ...manageAdminsClass, admins: manageAdminsClass.admins.filter((a: number) => a !== id) });
+  };
+
   return (
     <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto min-h-[80vh] relative">
-      
+
       {/* Main Content Area */}
       {activeTab === 'groups' ? (
         <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-6">
           <div className="flex flex-col md:flex-row gap-4 items-center bg-[#f4f4f5] border-4 border-black p-4">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black" size={20} />
-              <input 
-                type="text" 
-                placeholder="Search groups by name..." 
+              <input
+                type="text"
+                placeholder="Search groups by name..."
                 value={groupSearch}
                 onChange={(e) => setGroupSearch(e.target.value)}
                 className="w-full bg-white border-4 border-black p-3 pl-10 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all"
               />
             </div>
-            <button 
+            <button
               onClick={() => setShowCreateGroup(true)}
               className="flex items-center gap-2 bg-emerald-500 text-white border-4 border-black py-3 px-6 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all whitespace-nowrap"
             >
@@ -334,17 +435,102 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                          <button 
+                          <button
                             onClick={() => setManageAdminsGroup(g)}
                             className="bg-blue-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                             title="Manage Admins"
                           >
                             <Edit size={16} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleDeleteGroup(g.id)}
                             className="bg-red-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                             title="Delete Group"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : activeTab === 'classes' ? (
+        <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center bg-[#f4f4f5] border-4 border-black p-4">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black" size={20} />
+              <input
+                type="text"
+                placeholder="Search classes by name..."
+                value={classSearch}
+                onChange={(e) => setClassSearch(e.target.value)}
+                className="w-full bg-white border-4 border-black p-3 pl-10 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all"
+              />
+            </div>
+            <button
+              onClick={() => setShowCreateClass(true)}
+              className="flex items-center gap-2 bg-purple-600 text-white border-4 border-black py-3 px-6 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all whitespace-nowrap"
+            >
+              <Plus size={18} /> Create Class
+            </button>
+          </div>
+
+          <div className="overflow-x-auto border-4 border-black">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-black text-white uppercase tracking-widest text-xs font-black">
+                  <th className="p-4 border-r-4 border-black w-20 text-center">Logo</th>
+                  <th className="p-4 border-r-4 border-black">Class Details</th>
+                  <th className="p-4 border-r-4 border-black">Admins</th>
+                  <th className="p-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classesLoading ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center font-black uppercase tracking-widest border-t-4 border-black">Loading Data...</td>
+                  </tr>
+                ) : classes.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center font-black uppercase tracking-widest border-t-4 border-black">No classes found</td>
+                  </tr>
+                ) : (
+                  classes.map(c => (
+                    <tr key={c.id} className="border-t-4 border-black hover:bg-[#f4f4f5] transition-colors">
+                      <td className="p-4 border-r-4 border-black">
+                        {c.logo ? (
+                          <img src={c.logo} alt="Logo" className="w-12 h-12 border-2 border-black object-cover mx-auto bg-white" />
+                        ) : (
+                          <div className="w-12 h-12 border-2 border-black bg-purple-100 flex items-center justify-center font-black text-purple-800 mx-auto">
+                            {c.name.charAt(0)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-4 border-r-4 border-black">
+                        <div className="font-black uppercase text-lg">{c.name}</div>
+                        <div className="text-xs font-bold text-gray-500 mb-2">ID: {c.id}</div>
+                        <div className="text-xs font-bold text-gray-500 mb-2">Invite Code: {c.invitecode}</div>
+                      </td>
+                      <td className="p-4 border-r-4 border-black font-bold">
+                        {c.admins.length} Admins
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <button
+                            onClick={() => setManageAdminsClass(c)}
+                            className="bg-blue-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
+                            title="Manage Admins"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClass(c.id)}
+                            className="bg-red-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
+                            title="Delete Class"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -362,16 +548,16 @@ export default function AdminDashboard() {
           <div className="flex flex-col md:flex-row gap-4 items-center bg-[#f4f4f5] border-4 border-black p-4">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black" size={20} />
-              <input 
-                type="text" 
-                placeholder="Search by name, roll no, or email..." 
+              <input
+                type="text"
+                placeholder="Search by name, roll no, or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-white border-4 border-black p-3 pl-10 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
               />
             </div>
             <div className="flex gap-4 w-full md:w-auto">
-              <select 
+              <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="bg-white border-4 border-black p-3 font-black uppercase tracking-widest text-xs outline-none cursor-pointer focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
@@ -382,7 +568,7 @@ export default function AdminDashboard() {
                 <option value="disabled">Disabled</option>
               </select>
               {activeTab === 'users' && (
-                <select 
+                <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
                   className="bg-white border-4 border-black p-3 font-black uppercase tracking-widest text-xs outline-none cursor-pointer focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
@@ -394,7 +580,7 @@ export default function AdminDashboard() {
                 </select>
               )}
               {activeTab === 'faculty' && (
-                <button 
+                <button
                   onClick={() => setShowAddFaculty(true)}
                   className="flex items-center gap-2 bg-[#3B82F6] text-white border-4 border-black py-3 px-6 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all whitespace-nowrap"
                 >
@@ -451,8 +637,8 @@ export default function AdminDashboard() {
                             {u.status === 'active' ? <CheckCircle size={10} /> : u.status === 'pending' ? <Clock size={10} /> : <ShieldOff size={10} />}
                             {u.status}
                             {u.status === 'disabled' && u.disabledmsg && (
-                              <button 
-                                onClick={() => setViewDisabledMsg({name: u.name, msg: u.disabledmsg})}
+                              <button
+                                onClick={() => setViewDisabledMsg({ name: u.name, msg: u.disabledmsg })}
                                 className="ml-1 hover:text-black transition-colors"
                                 title="View Reason"
                               >
@@ -465,7 +651,7 @@ export default function AdminDashboard() {
                       <td className="p-4">
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {u.type !== 'admin' && (
-                            <button 
+                            <button
                               onClick={() => changeRole(u.userid, 'admin')}
                               className="bg-red-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                               title="Make Admin"
@@ -474,7 +660,7 @@ export default function AdminDashboard() {
                             </button>
                           )}
                           {u.type === 'admin' && u.userid !== userData.user_id && (
-                            <button 
+                            <button
                               onClick={() => changeRole(u.userid, 'member')}
                               className="bg-gray-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                               title="Remove Admin Role"
@@ -483,7 +669,7 @@ export default function AdminDashboard() {
                             </button>
                           )}
                           {u.type === 'member' && (
-                            <button 
+                            <button
                               onClick={() => changeRole(u.userid, 'faculty')}
                               className="bg-blue-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                               title="Make Faculty"
@@ -492,7 +678,7 @@ export default function AdminDashboard() {
                             </button>
                           )}
                           {u.type === 'faculty' && (
-                            <button 
+                            <button
                               onClick={() => changeRole(u.userid, 'member')}
                               className="bg-gray-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                               title="Remove Faculty Role"
@@ -501,7 +687,7 @@ export default function AdminDashboard() {
                             </button>
                           )}
                           {u.status !== 'active' && (
-                            <button 
+                            <button
                               onClick={() => changeStatus(u.userid, 'active')}
                               className="bg-green-400 text-black border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                               title="Set Active"
@@ -510,7 +696,7 @@ export default function AdminDashboard() {
                             </button>
                           )}
                           {u.status !== 'pending' && (
-                            <button 
+                            <button
                               onClick={() => changeStatus(u.userid, 'pending')}
                               className="bg-yellow-400 text-black border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                               title="Set Pending"
@@ -519,8 +705,8 @@ export default function AdminDashboard() {
                             </button>
                           )}
                           {u.status !== 'disabled' && (
-                            <button 
-                              onClick={() => setDisabledMsgPrompt({userId: u.userid, name: u.name})}
+                            <button
+                              onClick={() => setDisabledMsgPrompt({ userId: u.userid, name: u.name })}
                               className="bg-red-500 text-white border-2 border-black p-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform"
                               title="Disable Account"
                             >
@@ -547,7 +733,7 @@ export default function AdminDashboard() {
             <h3 className="text-2xl font-black uppercase tracking-tighter text-red-500">Disable User</h3>
             <p className="font-bold">Provide a reason for disabling <strong>{disabledMsgPrompt.name}</strong>'s account. This message will be shown to them.</p>
             <form onSubmit={handleDisableSubmit} className="flex flex-col gap-4">
-              <textarea 
+              <textarea
                 required
                 placeholder="e.g. Violation of community guidelines..."
                 value={disabledMsg}
@@ -555,14 +741,14 @@ export default function AdminDashboard() {
                 className="w-full h-32 border-4 border-black p-3 font-bold outline-none resize-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(239,68,68,1)] transition-all"
               />
               <div className="flex gap-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => { setDisabledMsgPrompt(null); setDisabledMsg(''); }}
                   className="flex-1 bg-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="flex-1 bg-red-500 text-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
                 >
@@ -583,7 +769,7 @@ export default function AdminDashboard() {
             <div className="bg-[#f4f4f5] border-4 border-black p-4 font-bold whitespace-pre-wrap">
               {viewDisabledMsg.msg}
             </div>
-            <button 
+            <button
               onClick={() => setViewDisabledMsg(null)}
               className="w-full bg-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all mt-2"
             >
@@ -599,15 +785,15 @@ export default function AdminDashboard() {
           <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col gap-4">
             <h3 className="text-2xl font-black uppercase tracking-tighter text-emerald-500">Create New Group</h3>
             <form onSubmit={handleCreateGroup} className="flex flex-col gap-4">
-              <input required type="text" placeholder="Group Name" value={newGroupData.name} onChange={e => setNewGroupData({...newGroupData, name: e.target.value})} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all" />
-              <textarea placeholder="Description" value={newGroupData.description} onChange={e => setNewGroupData({...newGroupData, description: e.target.value})} className="w-full border-4 border-black p-3 font-bold outline-none resize-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all h-24" />
-              <input type="text" placeholder="Logo URI (optional)" value={newGroupData.logo} onChange={e => setNewGroupData({...newGroupData, logo: e.target.value})} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all" />
-              <select value={newGroupData.type} onChange={e => setNewGroupData({...newGroupData, type: e.target.value})} className="w-full border-4 border-black p-3 font-black uppercase tracking-widest outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all">
+              <input required type="text" placeholder="Group Name" value={newGroupData.name} onChange={e => setNewGroupData({ ...newGroupData, name: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all" />
+              <textarea placeholder="Description" value={newGroupData.description} onChange={e => setNewGroupData({ ...newGroupData, description: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none resize-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all h-24" />
+              <input type="text" placeholder="Logo URI (optional)" value={newGroupData.logo} onChange={e => setNewGroupData({ ...newGroupData, logo: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all" />
+              <select value={newGroupData.type} onChange={e => setNewGroupData({ ...newGroupData, type: e.target.value })} className="w-full border-4 border-black p-3 font-black uppercase tracking-widest outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all">
                 <option value="public">Public Group</option>
                 <option value="private">Private Group</option>
               </select>
-              <input type="text" placeholder="Admin User IDs (comma separated)" value={newGroupData.admins} onChange={e => setNewGroupData({...newGroupData, admins: e.target.value})} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all" />
-              
+              <input type="text" placeholder="Admin User IDs (comma separated)" value={newGroupData.admins} onChange={e => setNewGroupData({ ...newGroupData, admins: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] transition-all" />
+
               <div className="flex gap-4 mt-2">
                 <button type="button" onClick={() => setShowCreateGroup(false)} className="flex-1 bg-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Cancel</button>
                 <button type="submit" className="flex-1 bg-emerald-500 text-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Create</button>
@@ -623,17 +809,17 @@ export default function AdminDashboard() {
           <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full flex flex-col gap-4">
             <h3 className="text-2xl font-black uppercase tracking-tighter text-blue-500">Manage Admins</h3>
             <p className="font-bold">Group: {manageAdminsGroup.name}</p>
-            
+
             <div className="flex flex-col gap-2 relative">
               <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Search user by name, roll no, or ID..." 
-                  value={adminSearchQuery} 
-                  onChange={e => setAdminSearchQuery(e.target.value)} 
-                  className="flex-1 border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" 
+                <input
+                  type="text"
+                  placeholder="Search user by name, roll no, or ID..."
+                  value={adminSearchQuery}
+                  onChange={e => setAdminSearchQuery(e.target.value)}
+                  className="flex-1 border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
                 />
-                <button 
+                <button
                   onClick={() => addAdmin(parseInt(adminSearchQuery))}
                   className="bg-black text-white border-4 border-black px-4 font-black uppercase hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
                   title="Add directly by User ID"
@@ -641,7 +827,7 @@ export default function AdminDashboard() {
                   Add ID
                 </button>
               </div>
-              
+
               {/* Search Results Dropdown */}
               {(adminSearchResults.length > 0 || searchingAdmins) && (
                 <div className="absolute top-full mt-2 left-0 right-0 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-48 overflow-y-auto z-10 flex flex-col">
@@ -649,7 +835,7 @@ export default function AdminDashboard() {
                     <div className="p-3 font-bold text-center">Searching...</div>
                   ) : (
                     adminSearchResults.map(u => (
-                      <button 
+                      <button
                         key={u.userid}
                         onClick={() => addAdmin(u.userid)}
                         className="flex justify-between items-center p-3 border-b-2 border-black hover:bg-blue-100 transition-colors text-left"
@@ -686,6 +872,95 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Create Class Modal */}
+      {showCreateClass && (
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col gap-4">
+            <h3 className="text-2xl font-black uppercase tracking-tighter text-purple-600">Create New Class</h3>
+            <form onSubmit={handleCreateClass} className="flex flex-col gap-4">
+              <input required type="text" placeholder="Class Name" value={newClassData.name} onChange={e => setNewClassData({ ...newClassData, name: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all" />
+              <textarea placeholder="Description" value={newClassData.description} onChange={e => setNewClassData({ ...newClassData, description: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none resize-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all h-24" />
+              <input type="text" placeholder="Logo URI (optional)" value={newClassData.logo} onChange={e => setNewClassData({ ...newClassData, logo: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all" />
+              <input type="text" placeholder="Admin User IDs (comma separated)" value={newClassData.admins} onChange={e => setNewClassData({ ...newClassData, admins: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all" />
+
+              <div className="flex gap-4 mt-2">
+                <button type="button" onClick={() => setShowCreateClass(false)} className="flex-1 bg-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Cancel</button>
+                <button type="submit" className="flex-1 bg-purple-600 text-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Class Admins Modal */}
+      {manageAdminsClass && (
+        <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full flex flex-col gap-4">
+            <h3 className="text-2xl font-black uppercase tracking-tighter text-blue-500">Manage Class Admins</h3>
+            <p className="font-bold">Class: {manageAdminsClass.name}</p>
+
+            <div className="flex flex-col gap-2 relative">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Search user by name, roll no, or ID..."
+                  value={adminSearchQuery}
+                  onChange={e => setAdminSearchQuery(e.target.value)}
+                  className="flex-1 border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
+                />
+                <button
+                  onClick={() => addClassAdmin(parseInt(adminSearchQuery))}
+                  className="bg-black text-white border-4 border-black px-4 font-black uppercase hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+                  title="Add directly by User ID"
+                >
+                  Add ID
+                </button>
+              </div>
+
+              {/* Search Results Dropdown */}
+              {(adminSearchResults.length > 0 || searchingAdmins) && (
+                <div className="absolute top-full mt-2 left-0 right-0 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-48 overflow-y-auto z-10 flex flex-col">
+                  {searchingAdmins ? (
+                    <div className="p-3 font-bold text-center">Searching...</div>
+                  ) : (
+                    adminSearchResults.map(u => (
+                      <button
+                        key={u.userid}
+                        onClick={() => addClassAdmin(u.userid)}
+                        className="flex justify-between items-center p-3 border-b-2 border-black hover:bg-blue-100 transition-colors text-left"
+                      >
+                        <div>
+                          <div className="font-black uppercase">{u.name}</div>
+                          <div className="text-xs font-bold text-gray-500">{u.rollno || u.email}</div>
+                        </div>
+                        <div className="text-xs font-black bg-black text-white px-2 py-1">ID: {u.userid}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-2">
+              {manageAdminsClass.admins.map((id: number) => (
+                <div key={id} className="flex items-center gap-2 bg-[#f4f4f5] border-4 border-black py-1 px-3 font-bold">
+                  ID: {id}
+                  <button onClick={() => removeClassAdmin(id)} className="text-red-500 hover:scale-110 transition-transform">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              {manageAdminsClass.admins.length === 0 && <span className="text-gray-500 italic">No admins assigned.</span>}
+            </div>
+
+            <div className="flex gap-4 mt-4">
+              <button onClick={() => setManageAdminsClass(null)} className="flex-1 bg-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Cancel</button>
+              <button onClick={handleUpdateClassAdmins} className="flex-1 bg-blue-500 text-white border-4 border-black py-3 font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Faculty Modal */}
       {showAddFaculty && (
         <div className="fixed top-0 left-0 w-full h-[calc(100dvh-4rem)] md:inset-0 md:h-full z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -697,17 +972,17 @@ export default function AdminDashboard() {
               </button>
             </div>
             <p className="font-bold text-sm text-gray-600">Search for a student/member to promote them to Faculty status.</p>
-            
+
             <div className="flex flex-col gap-2 relative">
               <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Search user by name, roll no, or ID..." 
-                  value={addFacultySearchQuery} 
-                  onChange={e => setAddFacultySearchQuery(e.target.value)} 
-                  className="flex-1 border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all" 
+                <input
+                  type="text"
+                  placeholder="Search user by name, roll no, or ID..."
+                  value={addFacultySearchQuery}
+                  onChange={e => setAddFacultySearchQuery(e.target.value)}
+                  className="flex-1 border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] transition-all"
                 />
-                <button 
+                <button
                   onClick={() => {
                     const id = parseInt(addFacultySearchQuery);
                     if (!isNaN(id)) {
@@ -723,7 +998,7 @@ export default function AdminDashboard() {
                   Add ID
                 </button>
               </div>
-              
+
               {/* Search Results Dropdown */}
               {(addFacultySearchResults.length > 0 || searchingAddFaculty) && (
                 <div className="absolute top-full mt-2 left-0 right-0 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-48 overflow-y-auto z-10 flex flex-col">
@@ -731,7 +1006,7 @@ export default function AdminDashboard() {
                     <div className="p-3 font-bold text-center">Searching...</div>
                   ) : (
                     addFacultySearchResults.map(u => (
-                      <button 
+                      <button
                         key={u.userid}
                         onClick={() => {
                           changeRole(u.userid, 'faculty');

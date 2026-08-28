@@ -1,10 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Users, Compass, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
+import { Home, User, Users, Compass, LogOut, ChevronLeft, ChevronRight, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info, BookOpen, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 import { useUnreadCounts } from '../../hooks/useUnreadCounts';
 import { useGroupUnreadCounts } from '../../hooks/useGroupUnreadCounts';
 
-export default function DesktopSidebar() {
+interface DesktopSidebarProps {
+  userData?: any;
+}
+
+export default function DesktopSidebar({ userData }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -34,6 +38,7 @@ export default function DesktopSidebar() {
   let adminTab = 'users';
   if (location.pathname.includes('/admindash/faculty')) adminTab = 'faculty';
   if (location.pathname.includes('/admindash/groups')) adminTab = 'groups';
+  if (location.pathname.includes('/admindash/classes')) adminTab = 'classes';
 
   const adminNavItemClass = (tab: string) => `
     flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap
@@ -85,6 +90,10 @@ export default function DesktopSidebar() {
             <button onClick={() => navigate('/admindash/groups')} className={`${adminNavItemClass('groups')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
               <Grid size={24} className="shrink-0" />
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Groups</span>
+            </button>
+            <button onClick={() => navigate('/admindash/classes')} className={`${adminNavItemClass('classes')} ${isCollapsed ? 'justify-center' : 'justify-start'} w-full`}>
+              <BookOpen size={24} className="shrink-0" />
+              <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Classes</span>
             </button>
           </>
         ) : isGroupPage ? (
@@ -148,6 +157,13 @@ export default function DesktopSidebar() {
               </div>
               <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Social</span>
             </Link>
+
+            {(userData?.type === 'faculty' || userData?.type === 'admin') && (
+              <Link to="/faculty" className={`${navItemClass('/faculty')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
+                <GraduationCap size={24} className="shrink-0" />
+                <span className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Classes</span>
+              </Link>
+            )}
 
             <Link to="/dash/profile" className={`${navItemClass('/dash/profile')} ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
               <User size={24} className="shrink-0" />

@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import DesktopSidebar from './DesktopSidebar';
-import MobileBottomNav from './MobileBottomNav';
-import InstallPWAPrompt from '../InstallPWAPrompt';
+import FacultySidebar from './FacultySidebar';
+import FacultyBottomNav from './FacultyBottomNav';
 
-export default function DashboardLayout() {
+export default function FacultyLayout() {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -24,6 +23,10 @@ export default function DashboardLayout() {
           }
           if (data.data.status === 'pending') {
             navigate('/onboarding');
+            return;
+          }
+          if (data.data.type !== 'faculty' && data.data.type !== 'admin') {
+            navigate('/dash');
             return;
           }
           setUserData(data.data);
@@ -52,19 +55,17 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-[#FFF5E1] flex font-sans">
-      <DesktopSidebar userData={userData} />
+      <FacultySidebar />
       
-      <main id="dashboard-main" className="flex-1 flex flex-col relative pb-16 lg:pb-0 overflow-x-hidden">
-
+      <main id="faculty-dashboard-main" className="flex-1 flex flex-col relative pb-16 lg:pb-0 overflow-x-hidden">
         <div className="p-4 sm:p-8 lg:p-12 w-full max-w-7xl mx-auto flex flex-col flex-1 overflow-hidden">
-          <InstallPWAPrompt />
           <div className="flex-1 overflow-y-auto">
             <Outlet context={{ userData }} />
           </div>
         </div>
       </main>
 
-      <MobileBottomNav userData={userData} />
+      <FacultyBottomNav />
     </div>
   );
 }

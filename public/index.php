@@ -130,6 +130,42 @@ if (strpos($request_uri, '/api/admin/groups') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/admin/classes') === 0) {
+    require_once __DIR__ . '/controller/api/admin_classes.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/faculty/classes') === 0) {
+    require_once __DIR__ . '/controller/api/faculty_classes.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/homework/create') === 0) {
+    require_once __DIR__ . '/controller/api/create_homework.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/homework/edit') === 0) {
+    require_once __DIR__ . '/controller/api/edit_homework.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/homework/delete') === 0) {
+    require_once __DIR__ . '/controller/api/delete_homework.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/homework/get') === 0) {
+    require_once __DIR__ . '/controller/api/get_homework.php';
+    exit();
+}
+
+if (strpos($request_uri, '/api/homework/submit') === 0) {
+    require_once __DIR__ . '/controller/api/submit_homework.php';
+    exit();
+}
+
+
 if (strpos($request_uri, '/api/community') === 0) {
     require_once __DIR__ . '/controller/api/community.php';
     exit();
@@ -216,12 +252,20 @@ if (strpos($request_uri, '/api/') !== 0 && strpos($request_uri, '/auth/') !== 0 
         $status = $sessionManager->validateSessionStatus($user_id, $session_id);
         
         if ($status === 'valid') {
-            $stmt = $conn->prepare("SELECT status FROM userdata WHERE user_id = ?");
+            $stmt = $conn->prepare("SELECT status, type FROM userdata WHERE user_id = ?");
             $stmt->execute([$user_id]);
             $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($userRow) {
                 $userStatus = $userRow['status'];
+                $userType = $userRow['type'];
+                
+                // Block non-faculty/admin from accessing /faculty
+                if (strpos($request_uri, '/faculty') === 0 && $userType !== 'faculty' && $userType !== 'admin') {
+                    header("Location: /dash");
+                    exit();
+                }
+
                 // Redirect pending users to onboarding (unless already there)
                 if ($userStatus === 'pending' && $request_uri !== '/onboarding') {
                     header("Location: /onboarding");

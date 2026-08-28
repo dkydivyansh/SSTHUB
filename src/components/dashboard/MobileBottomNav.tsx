@@ -1,9 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info } from 'lucide-react';
+import { Home, User, Users, Compass, UserCog, ArrowLeft, Grid, Megaphone, Calendar, Info, BookOpen, GraduationCap } from 'lucide-react';
 import { useUnreadCounts } from '../../hooks/useUnreadCounts';
 import { useGroupUnreadCounts } from '../../hooks/useGroupUnreadCounts';
 
-export default function MobileBottomNav() {
+interface MobileBottomNavProps {
+  userData?: any;
+}
+
+export default function MobileBottomNav({ userData }: MobileBottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { unreadCommunity, unreadSocial } = useUnreadCounts();
@@ -29,10 +33,11 @@ export default function MobileBottomNav() {
   let adminTab = 'users';
   if (location.pathname.includes('/admindash/faculty')) adminTab = 'faculty';
   if (location.pathname.includes('/admindash/groups')) adminTab = 'groups';
+  if (location.pathname.includes('/admindash/classes')) adminTab = 'classes';
 
   const adminNavItemClass = (tab: string) => `
     flex flex-col items-center justify-center p-2 flex-1 transition-colors
-    ${adminTab === tab ? (tab === 'users' ? 'text-[#3B82F6]' : tab === 'faculty' ? 'text-red-500' : 'text-emerald-500') : 'text-black hover:text-[#3B82F6]'}
+    ${adminTab === tab ? (tab === 'users' ? 'text-[#3B82F6]' : tab === 'faculty' ? 'text-red-500' : tab === 'groups' ? 'text-emerald-500' : 'text-purple-600') : 'text-black hover:text-[#3B82F6]'}
   `;
 
   const groupNavItemClass = (tab: string) => `
@@ -62,6 +67,11 @@ export default function MobileBottomNav() {
           <button onClick={() => navigate('/admindash/groups')} className={adminNavItemClass('groups')}>
             <Grid size={20} className={adminTab === 'groups' ? 'fill-emerald-500 text-emerald-500' : ''} />
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Groups</span>
+          </button>
+
+          <button onClick={() => navigate('/admindash/classes')} className={adminNavItemClass('classes')}>
+            <BookOpen size={20} className={adminTab === 'classes' ? 'fill-purple-600 text-purple-600' : ''} />
+            <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Classes</span>
           </button>
         </>
       ) : isGroupPage ? (
@@ -131,6 +141,12 @@ export default function MobileBottomNav() {
             <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Social</span>
           </Link>
 
+          {(userData?.type === 'faculty' || userData?.type === 'admin') && (
+            <Link to="/faculty" className={navItemClass('/faculty')}>
+              <GraduationCap size={20} className={isActive('/faculty') ? 'fill-[#3B82F6]' : ''} />
+              <span className="text-[9px] font-black uppercase tracking-widest mt-0.5">Classes</span>
+            </Link>
+          )}
 
           <Link to="/dash/profile" className={navItemClass('/dash/profile')}>
             <User size={20} className={isActive('/dash/profile') ? 'fill-[#3B82F6]' : ''} />

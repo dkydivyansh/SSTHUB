@@ -19,7 +19,11 @@ import GroupPage from './pages/GroupPage';
 import CreateGroupPost from './pages/CreateGroupPost';
 import GroupSearch from './pages/GroupSearch';
 import AdminDashboard from './pages/AdminDashboard';
+import FacultyDashboard from './pages/FacultyDashboard';
+import FacultyClassPage from './pages/FacultyClassPage';
+import HomeworkCreatePage from './pages/HomeworkCreatePage';
 import DashboardLayout from './components/dashboard/DashboardLayout';
+import FacultyLayout from './components/dashboard/FacultyLayout';
 import PageLoader from './components/PageLoader';
 import Calendar from './pages/Calendar';
 import Events from './pages/Events';
@@ -76,6 +80,14 @@ function AppRoutes() {
           <Route path="users" element={<AdminDashboard />} />
           <Route path="faculty" element={<AdminDashboard />} />
           <Route path="groups" element={<AdminDashboard />} />
+          <Route path="classes" element={<AdminDashboard />} />
+        </Route>
+
+        <Route path="/faculty" element={<FacultyLayout />}>
+          <Route index element={<FacultyDashboard />} />
+          <Route path="class/:classId" element={<FacultyClassPage />} />
+          <Route path="class/:classId/homework/create" element={<HomeworkCreatePage />} />
+          <Route path="class/:classId/homework/:homeworkId/edit" element={<HomeworkCreatePage />} />
         </Route>
 
         <Route path="/logout" element={<Logout />} />

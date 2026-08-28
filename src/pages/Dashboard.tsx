@@ -131,6 +131,15 @@ export default function Dashboard() {
 
       {/* Quick Links Section */}
       <div className="w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-4">
+        {(userData?.type === 'admin' || userData?.type === 'faculty') && (
+          <Link 
+            to="/faculty"
+            className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-[#8B5CF6] text-white border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group lg:col-span-4"
+          >
+            <ClipboardCheck className="text-white w-6 h-6 sm:w-8 sm:h-8 mb-1" />
+            <span className="font-black uppercase tracking-widest text-center text-[10px] sm:text-xs">Manage Classes (Faculty)</span>
+          </Link>
+        )}
         <Link 
           to="/dash/calendar/2026-27"
           className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-white border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group"
