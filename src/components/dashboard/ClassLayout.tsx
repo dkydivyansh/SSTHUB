@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import FacultySidebar from './FacultySidebar';
-import FacultyBottomNav from './FacultyBottomNav';
+import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import ClassSidebar from './ClassSidebar';
+import ClassBottomNav from './ClassBottomNav';
 
-export default function FacultyLayout() {
+export default function ClassLayout() {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { classId } = useParams();
 
   useEffect(() => {
     fetch('/api/profile', {
@@ -55,9 +56,9 @@ export default function FacultyLayout() {
 
   return (
     <div className="min-h-screen bg-[#FFF5E1] flex font-sans">
-      <FacultySidebar />
+      <ClassSidebar classId={classId || ''} />
       
-      <main id="faculty-dashboard-main" className="flex-1 flex flex-col relative pb-16 lg:pb-0 overflow-x-hidden">
+      <main id="class-dashboard-main" className="flex-1 flex flex-col relative pb-16 lg:pb-0 overflow-x-hidden">
         <div className="p-4 sm:p-8 lg:p-12 w-full max-w-7xl mx-auto flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             <Outlet context={{ userData }} />
@@ -65,7 +66,7 @@ export default function FacultyLayout() {
         </div>
       </main>
 
-      <FacultyBottomNav />
+      <ClassBottomNav classId={classId || ''} />
     </div>
   );
 }

@@ -21,9 +21,10 @@ import GroupSearch from './pages/GroupSearch';
 import AdminDashboard from './pages/AdminDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
 import FacultyClassPage from './pages/FacultyClassPage';
+import ClassExtrasPage from './pages/ClassExtrasPage';
 import HomeworkCreatePage from './pages/HomeworkCreatePage';
 import DashboardLayout from './components/dashboard/DashboardLayout';
-import FacultyLayout from './components/dashboard/FacultyLayout';
+import ClassLayout from './components/dashboard/ClassLayout';
 import PageLoader from './components/PageLoader';
 import Calendar from './pages/Calendar';
 import Events from './pages/Events';
@@ -83,11 +84,15 @@ function AppRoutes() {
           <Route path="classes" element={<AdminDashboard />} />
         </Route>
 
-        <Route path="/faculty" element={<FacultyLayout />}>
+        <Route path="/faculty" element={<DashboardLayout />}>
           <Route index element={<FacultyDashboard />} />
-          <Route path="class/:classId" element={<FacultyClassPage />} />
-          <Route path="class/:classId/homework/create" element={<HomeworkCreatePage />} />
-          <Route path="class/:classId/homework/:homeworkId/edit" element={<HomeworkCreatePage />} />
+        </Route>
+
+        <Route path="/faculty/class/:classId" element={<ClassLayout />}>
+          <Route index element={<FacultyClassPage />} />
+          <Route path="extras" element={<ClassExtrasPage />} />
+          <Route path="homework/create" element={<HomeworkCreatePage />} />
+          <Route path="homework/:homeworkId/edit" element={<HomeworkCreatePage />} />
         </Route>
 
         <Route path="/logout" element={<Logout />} />
