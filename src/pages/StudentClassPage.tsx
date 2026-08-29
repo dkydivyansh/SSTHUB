@@ -8,6 +8,10 @@ export default function StudentClassPage() {
   const [classData, setClassData] = useState<any>(null);
   const [homework, setHomework] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
+  const showInfo = (title: string, message: string) => setModalState({ isOpen: true, title, message });
+  const closeModal = () => setModalState({ ...modalState, isOpen: false });
 
   useEffect(() => {
     Promise.all([
@@ -89,12 +93,8 @@ export default function StudentClassPage() {
               const isSubmitted = hw.is_submitted === 1;
               const isOverdue = hw.expires_at && new Date(hw.expires_at) < new Date();
               
-              return (
-                <Link 
-                  key={hw.id}
-                  to={`/dash/class/${classId}/homework/${hw.id}`}
-                  className="bg-white border-4 border-black p-4 md:p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[12px_12px_0px_0px_rgba(147,51,234,1)] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
-                >
+              const content = (
+                <>
                   <div className="flex items-start gap-4 flex-1 min-w-0">
                     <div className="shrink-0 mt-1">
                       {isSubmitted ? (
@@ -141,17 +141,57 @@ export default function StudentClassPage() {
                         Overdue
                       </span>
                     ) : (
-                      <span className="bg-purple-100 text-purple-800 border-2 border-black px-3 py-1 text-xs font-black uppercase tracking-widest">
-                        Pending
-                      </span>
+                      <span className="text-purple-600 font-black uppercase tracking-widest text-xs">Pending</span>
                     )}
                   </div>
+                </>
+              );
+
+              if (isOverdue && !isSubmitted) {
+                return (
+                  <div 
+                    key={hw.id}
+                    onClick={() => showInfo('Deadline Passed', 'This assignment is overdue and can no longer be accessed.')}
+                    className="bg-gray-50 border-4 border-gray-300 p-4 md:p-6 opacity-70 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    {content}
+                  </div>
+                );
+              }
+              
+              return (
+                <Link 
+                  key={hw.id}
+                  to={`/dash/class/${classId}/homework/${hw.id}`}
+                  className="bg-white border-4 border-black p-4 md:p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[12px_12px_0px_0px_rgba(147,51,234,1)] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                >
+                  {content}
                 </Link>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Custom Popup Modal */}
+      {modalState.isOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white border-4 border-black w-full max-w-sm shadow-[12px_12px_0px_0px_rgba(147,51,234,1)] flex flex-col">
+            <div className="p-6 text-center flex flex-col gap-4">
+              <h3 className="font-black uppercase tracking-tighter text-2xl">{modalState.title}</h3>
+              <p className="font-bold text-gray-700">{modalState.message}</p>
+            </div>
+            <div className="flex border-t-4 border-black">
+              <button 
+                onClick={closeModal}
+                className="flex-1 p-4 bg-black text-white font-black uppercase tracking-widest hover:bg-purple-600 transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

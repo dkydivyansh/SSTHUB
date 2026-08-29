@@ -6,6 +6,8 @@ export default function ClassExtrasPage() {
   const { classId } = useParams();
   const [classData, setClassData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editData, setEditData] = useState({ name: '', description: '' });
 
   useEffect(() => {
     fetch('/api/faculty/classes')
@@ -15,6 +17,7 @@ export default function ClassExtrasPage() {
           const found = data.data.find((c: any) => c.id === classId);
           if (found) {
             setClassData(found);
+            setEditData({ name: found.name || '', description: found.description || '' });
             document.title = `${found.name} Extras - SST Hub`;
           }
         }
@@ -35,6 +38,35 @@ export default function ClassExtrasPage() {
   const handleResetLink = () => {
     // Dummy reset action
     alert('Invite link reset successfully (Mock action)');
+  };
+
+  const handleSaveChanges = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/update_class', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          class_id: classId,
+          name: editData.name,
+          description: editData.description
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setClassData({ ...classData, name: editData.name, description: editData.description });
+        alert('Class details updated successfully!');
+      } else {
+        alert(data.message || 'Error updating class');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -87,6 +119,41 @@ export default function ClassExtrasPage() {
           <h2 className="font-black uppercase tracking-widest text-lg text-center mt-2">Total Joined Users</h2>
           <div className="text-5xl font-black tracking-tighter text-black">
             {classData.members_count || 0}
+          </div>
+        </div>
+
+        {/* Edit Details Section */}
+        <div className="md:col-span-2 bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-4">
+          <h2 className="font-black uppercase tracking-widest text-lg border-b-4 border-black pb-2 mb-2">Class Settings</h2>
+          
+          <div className="flex flex-col gap-2">
+            <label className="font-bold uppercase tracking-widest text-sm">Class Name</label>
+            <input 
+              type="text" 
+              value={editData.name}
+              onChange={e => setEditData({ ...editData, name: e.target.value })}
+              className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="font-bold uppercase tracking-widest text-sm">Description (Optional)</label>
+            <textarea 
+              value={editData.description}
+              onChange={e => setEditData({ ...editData, description: e.target.value })}
+              rows={3}
+              className="w-full border-4 border-black p-3 font-medium outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all"
+            />
+          </div>
+
+          <div className="flex justify-end mt-2">
+            <button 
+              onClick={handleSaveChanges}
+              disabled={saving}
+              className="px-6 py-2 bg-purple-600 text-white border-4 border-black font-black uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
         </div>
       </div>

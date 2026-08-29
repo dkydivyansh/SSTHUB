@@ -45,19 +45,18 @@ export default function FacultyDashboard() {
             <button 
               key={c.id} 
               onClick={() => navigate(`/faculty/class/${c.id}`)}
-              className="bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_rgba(147,51,234,1)] transition-all flex flex-col items-center gap-4 text-center group"
+              className="bg-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_rgba(147,51,234,1)] transition-all flex flex-col gap-4 text-left group"
             >
-              {c.logo ? (
-                <img src={c.logo} alt={c.name} className="w-24 h-24 border-4 border-black object-cover" />
-              ) : (
-                <div className="w-24 h-24 border-4 border-black bg-purple-100 flex items-center justify-center text-3xl font-black text-purple-800">
-                  {c.name.charAt(0)}
-                </div>
-              )}
-              <div>
-                <h3 className="font-black uppercase tracking-tight text-xl group-hover:text-purple-600 transition-colors">{c.name}</h3>
+              <div className="flex flex-col flex-1">
+                <h3 className="font-black uppercase tracking-tight text-2xl group-hover:text-purple-600 transition-colors">{c.name}</h3>
                 <p className="font-bold text-xs text-gray-500 uppercase tracking-widest mt-1">ID: {c.id}</p>
                 {c.description && <p className="font-bold text-sm mt-2 line-clamp-2">{c.description}</p>}
+              </div>
+              <div className="mt-4 pt-4 border-t-4 border-black flex justify-between items-center w-full">
+                <span className="font-black text-xs uppercase tracking-widest text-purple-600">Faculty</span>
+                <div className="px-4 py-2 bg-black text-white font-black text-xs uppercase tracking-widest hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all">
+                  Manage
+                </div>
               </div>
             </button>
           ))

@@ -147,10 +147,24 @@ export default function HomeworkCreatePage() {
             .addView(new (window as any).google.picker.DocsUploadView())
             .setOAuthToken(tokenResponse.access_token)
             .setDeveloperKey(API_KEY)
-            .setCallback((data: any) => {
+            .setAppId('395027667845')
+            .setCallback(async (data: any) => {
               if (data.action === (window as any).google.picker.Action.PICKED) {
                 const doc = data.docs[0];
                 setAttachments(prev => [...prev, { name: doc.name, url: doc.url }]);
+                
+                try {
+                  await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}/permissions`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${tokenResponse.access_token}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ type: 'anyone', role: 'reader' })
+                  });
+                } catch (e) {
+                  console.error("Failed to update file permissions automatically", e);
+                }
               }
             })
             .build();
@@ -366,11 +380,12 @@ export default function HomeworkCreatePage() {
               </button>
 
               <button 
-                onClick={() => setExtraType('assignment')}
-                className={`flex flex-col items-center justify-center p-6 border-4 border-black transition-all ${extraType === 'assignment' ? 'bg-purple-100 shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] -translate-y-1' : 'bg-white hover:bg-gray-50'}`}
+                disabled={true}
+                className={`relative flex flex-col items-center justify-center p-6 border-4 border-gray-300 bg-gray-100 opacity-70 cursor-not-allowed`}
               >
-                <span className="font-black uppercase tracking-widest text-lg">Interactive Assignment</span>
-                <span className="text-sm font-bold text-gray-500 mt-2 text-center">Build a form with MCQs, checkboxes, and text inputs.</span>
+                <div className="absolute top-2 right-2 bg-black text-white text-[10px] font-black uppercase tracking-widest px-2 py-1">Coming Soon</div>
+                <span className="font-black uppercase tracking-widest text-lg text-gray-500">Interactive Assignment</span>
+                <span className="text-sm font-bold text-gray-400 mt-2 text-center">Build a form with MCQs, checkboxes, and text inputs.</span>
               </button>
             </div>
 

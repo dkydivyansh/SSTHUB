@@ -23,6 +23,7 @@ import FacultyDashboard from './pages/FacultyDashboard';
 import FacultyClassPage from './pages/FacultyClassPage';
 import ClassExtrasPage from './pages/ClassExtrasPage';
 import HomeworkCreatePage from './pages/HomeworkCreatePage';
+import FacultyHomeworkSubmissionsPage from './pages/FacultyHomeworkSubmissionsPage';
 import StudentClassesPage from './pages/StudentClassesPage';
 import StudentClassPage from './pages/StudentClassPage';
 import StudentHomeworkViewer from './pages/StudentHomeworkViewer';
@@ -101,6 +102,7 @@ function AppRoutes() {
           <Route path="extras" element={<ClassExtrasPage />} />
           <Route path="homework/create" element={<HomeworkCreatePage />} />
           <Route path="homework/:homeworkId/edit" element={<HomeworkCreatePage />} />
+          <Route path="homework/:homeworkId/submissions" element={<FacultyHomeworkSubmissionsPage />} />
         </Route>
 
         <Route path="/logout" element={<Logout />} />

@@ -261,6 +261,16 @@ if (strpos($request_uri, '/check_db') === 0) {
     exit();
 }
 
+if (strpos($request_uri, '/api/homework/submissions/get') === 0) {
+    require_once __DIR__ . '/controller/api/get_homework_submissions.php';
+    exit();
+}
+
+if ($request_uri === '/api/update_class') {
+    require_once __DIR__ . '/controller/api/update_class.php';
+    exit();
+}
+
 // Server-side redirection based on user status for frontend routes
 if (strpos($request_uri, '/api/') !== 0 && strpos($request_uri, '/auth/') !== 0 && $request_uri !== '/testlogin') {
     $user_id = $_COOKIE['user_id'] ?? null;

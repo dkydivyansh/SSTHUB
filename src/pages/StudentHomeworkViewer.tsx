@@ -10,6 +10,7 @@ export default function StudentHomeworkViewer() {
   
   // Assignment State
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   
   // Media State
@@ -17,8 +18,30 @@ export default function StudentHomeworkViewer() {
   
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  // Custom Modal State
+  const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; isConfirm?: boolean; onConfirm?: () => void }>({ isOpen: false, title: '', message: '' });
+
+  const showInfo = (title: string, message: string) => {
+    setModalState({ isOpen: true, title, message, isConfirm: false });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setModalState({ isOpen: true, title, message, isConfirm: true, onConfirm });
+  };
+
+  const closeModal = () => setModalState({ ...modalState, isOpen: false });
 
   useEffect(() => {
+    // Load Google Picker API scripts
+    const script1 = document.createElement('script');
+    script1.src = 'https://apis.google.com/js/api.js';
+    document.body.appendChild(script1);
+
+    const script2 = document.createElement('script');
+    script2.src = 'https://accounts.google.com/gsi/client';
+    document.body.appendChild(script2);
+
     fetch(`/api/homework/get?class_id=${classId}&homework_id=${homeworkId}`)
       .then(res => res.json())
       .then(data => {
@@ -27,7 +50,6 @@ export default function StudentHomeworkViewer() {
           document.title = `${data.data.title} - SST Hub`;
           
           if (data.data.user_submission) {
-            // Restore answers if they already submitted
             setAnswers(data.data.user_submission.answers || {});
             setFiles(data.data.user_submission.files || []);
           }
@@ -37,6 +59,11 @@ export default function StudentHomeworkViewer() {
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
+
+    return () => {
+      if (document.body.contains(script1)) document.body.removeChild(script1);
+      if (document.body.contains(script2)) document.body.removeChild(script2);
+    };
   }, [classId, homeworkId]);
 
   const isSubmitted = !!hw?.user_submission;
@@ -44,51 +71,99 @@ export default function StudentHomeworkViewer() {
   const canSubmit = !isSubmitted && (!isOverdue);
 
   const handleDriveUpload = () => {
-    // Re-use logic from create homework page or open picker
-    alert('Google Drive Picker would open here');
-    // Mocking an upload
-    setFiles(prev => [...prev, { name: 'document.pdf', url: 'https://drive.google.com/...' }]);
+    const API_KEY = 'AIzaSyDoqhA63ZGJ2PArFx5rJ7uhxcpaFlUlVjg';
+    const CLIENT_ID = '395027667845-rnn22t43fi63jqoj6muqalemp1gt0ugs.apps.googleusercontent.com';
+    
+    const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: (tokenResponse: any) => {
+        if (tokenResponse.error !== undefined) {
+          throw tokenResponse;
+        }
+        (window as any).gapi.load('picker', () => {
+          const picker = new (window as any).google.picker.PickerBuilder()
+            .addView((window as any).google.picker.ViewId.DOCS)
+            .addView(new (window as any).google.picker.DocsUploadView())
+            .enableFeature((window as any).google.picker.Feature.MULTISELECT_ENABLED)
+            .setOAuthToken(tokenResponse.access_token)
+            .setDeveloperKey(API_KEY)
+            .setAppId('395027667845')
+            .setCallback(async (data: any) => {
+              if (data.action === (window as any).google.picker.Action.PICKED) {
+                const newFiles = data.docs.map((doc: any) => ({ name: doc.name, url: doc.url }));
+                setFiles(prev => [...prev, ...newFiles]);
+                
+                // Automatically make the uploaded files public so others can view them
+                for (const doc of data.docs) {
+                  try {
+                    await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}/permissions`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${tokenResponse.access_token}`,
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({ type: 'anyone', role: 'reader' })
+                    });
+                  } catch (e) {
+                    console.error("Failed to update file permissions automatically", e);
+                  }
+                }
+              }
+            })
+            .build();
+          picker.setVisible(true);
+        });
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: '' });
   };
 
   const removeFile = (idx: number) => {
     setFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const submitHomework = async () => {
-    if (!confirm('Are you sure you want to submit?')) return;
-    setSubmitting(true);
-    
-    let submissionData = {};
-    const type = hw?.extras?.type || 'media';
-    
-    if (type === 'media') {
-      submissionData = { files };
-    } else {
-      submissionData = { answers };
+  const submitHomework = () => {
+    if (isOverdue) {
+      showInfo('Deadline Passed', 'The deadline for this assignment has passed. Submissions are no longer accepted.');
+      return;
     }
-    
-    try {
-      const res = await fetch('/api/submit_homework', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          class_id: classId,
-          homework_id: homeworkId,
-          submission: submissionData
-        })
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
-        alert('Submitted successfully!');
-        window.location.reload();
+
+    showConfirm('Submit Homework', 'Are you sure you want to turn in your work?', async () => {
+      setSubmitting(true);
+      
+      let submissionData = {};
+      const type = hw?.extras?.type || 'media';
+      
+      if (type === 'media') {
+        submissionData = { files };
       } else {
-        alert(data.message || 'Error submitting');
+        submissionData = { answers };
       }
-    } catch (err) {
-      alert('Network error');
-    } finally {
-      setSubmitting(false);
-    }
+      
+      try {
+        const res = await fetch('/api/submit_homework', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            class_id: classId,
+            homework_id: homeworkId,
+            submission: submissionData
+          })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          showInfo('Success', 'Homework submitted successfully!');
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          showInfo('Error', data.message || 'Error submitting homework');
+        }
+      } catch (err) {
+        showInfo('Error', 'A network error occurred while submitting.');
+      } finally {
+        setSubmitting(false);
+      }
+    });
   };
 
   if (loading) {
@@ -111,24 +186,30 @@ export default function StudentHomeworkViewer() {
     );
   }
 
-  const type = hw.extras?.type || 'media';
+  let type = hw.extras?.type || 'media';
+  if (type === 'none') type = 'media';
   const questions = hw.extras?.questions || [];
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FFF5E1]">
+    <div className="flex flex-col min-h-screen bg-white sm:bg-[#FFF5E1]">
       {/* Top Header */}
-      <div className="bg-white border-b-4 border-black p-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/dash/class/${classId}`)} className="p-2 border-2 border-black hover:bg-purple-100 transition-colors">
+      <div className="bg-white border-b-4 border-black p-3 sm:p-4 flex items-start sm:items-center justify-between">
+        <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+          <button onClick={() => navigate(`/dash/class/${classId}`)} className="p-2 border-2 border-black hover:bg-purple-100 transition-colors shrink-0 mt-1 sm:mt-0">
             <ArrowLeft size={24} />
           </button>
-          <div>
-            <h1 className="font-black uppercase tracking-tighter text-xl sm:text-2xl truncate max-w-xs sm:max-w-md">{hw.title}</h1>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500">
+          <div className="flex flex-col flex-1 min-w-0">
+            <h1 className="font-black uppercase tracking-tighter text-lg sm:text-2xl break-words whitespace-normal leading-tight">{hw.title}</h1>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 mt-1">
               {isSubmitted ? (
-                <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> Turned In</span>
-              ) : isOverdue ? (
-                <span className="text-red-600">Overdue</span>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                  <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> Turned In</span>
+                  {hw.submitted_at && (
+                    <span className="text-gray-400 text-[10px] sm:text-xs tracking-normal normal-case">
+                      {new Date(hw.submitted_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  )}
+                </div>
               ) : (
                 <span className="text-purple-600">Pending</span>
               )}
@@ -144,22 +225,66 @@ export default function StudentHomeworkViewer() {
         )}
       </div>
 
-      <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto p-4 md:p-8">
+      <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto p-0 sm:p-4 md:p-8">
         
-        {/* Homework Description */}
-        <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-8">
-          <p className="whitespace-pre-wrap font-medium">{hw.description}</p>
-          {hw.expires_at && (
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t-2 border-dashed border-gray-300 text-sm font-bold uppercase tracking-widest text-red-600">
-              <Clock size={16} /> Due: {new Date(hw.expires_at).toLocaleString()}
-            </div>
-          )}
-        </div>
+        {/* MEDIA TYPE: STEP 1 (Instructions) */}
+        {type === 'media' && step === 1 && (
+          <div className="flex flex-col gap-4 sm:gap-8 flex-1">
+            <div className="bg-white sm:border-4 sm:border-black p-4 sm:p-6 sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-b-4 border-black flex-1">
+              {hw.content && hw.content.trim() !== '' ? (
+                <div 
+                  className="font-medium text-base prose-img:max-w-full prose-ul:list-disc prose-ul:pl-6 prose-ol:list-decimal prose-ol:pl-6"
+                  dangerouslySetInnerHTML={{ __html: hw.content }}
+                />
+              ) : (
+                <p className="text-gray-500 font-bold italic">No instructions provided.</p>
+              )}
 
-        {/* Media Type UI */}
-        {type === 'media' && (
-          <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(147,51,234,1)] flex flex-col gap-6">
-            <h2 className="text-2xl font-black uppercase tracking-tighter border-b-4 border-black pb-2">Your Work</h2>
+              {hw.extras?.attachments && hw.extras.attachments.length > 0 && (
+                <div className="mt-8 pt-6 border-t-4 border-black">
+                  <h3 className="font-black uppercase tracking-widest text-sm mb-4">Attachments</h3>
+                  <div className="flex flex-col gap-3">
+                    {hw.extras.attachments.map((att: any, idx: number) => (
+                      <a 
+                        key={idx} 
+                        href={att.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 border-2 border-black bg-purple-50 hover:bg-purple-100 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all group"
+                      >
+                        <File size={20} className="text-purple-600 shrink-0" />
+                        <span className="font-bold text-sm truncate group-hover:underline">{att.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end p-4 sm:p-0">
+              <button 
+                onClick={() => setStep(2)}
+                className="bg-purple-600 text-white px-8 py-3 font-black uppercase tracking-widest border-4 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MEDIA TYPE: STEP 2 (Upload UI) */}
+        {type === 'media' && step === 2 && (
+          <div className="flex flex-col gap-4 sm:gap-6 flex-1 sm:flex-none">
+            <div className="flex justify-start px-4 sm:px-0">
+               <button 
+                 onClick={() => setStep(1)}
+                 className="flex items-center gap-1 font-black uppercase tracking-widest hover:text-purple-600 transition-colors"
+               >
+                 <ArrowLeft size={16} /> Back to Instructions
+               </button>
+            </div>
+            <div className="bg-white sm:border-4 sm:border-black p-4 sm:p-6 sm:shadow-[8px_8px_0px_0px_rgba(147,51,234,1)] flex flex-col gap-4 sm:gap-6">
+              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tighter border-b-4 border-black pb-2">Your Work</h2>
             
             <div className="flex flex-col gap-4">
               {files.map((file, idx) => (
@@ -192,20 +317,21 @@ export default function StudentHomeworkViewer() {
             {!isSubmitted && (
               <button 
                 onClick={submitHomework}
-                disabled={submitting || files.length === 0}
+                disabled={submitting}
                 className="w-full bg-black text-white p-4 font-black uppercase tracking-widest border-4 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 {submitting ? 'Submitting...' : 'Turn In Homework'}
               </button>
             )}
           </div>
+        </div>
         )}
 
         {/* Assignment Type UI (Quiz) */}
         {type === 'assignment' && questions.length > 0 && (
-          <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(147,51,234,1)] flex flex-col h-[500px]">
+          <div className="bg-white sm:border-4 sm:border-black sm:shadow-[8px_8px_0px_0px_rgba(147,51,234,1)] flex flex-col flex-1 sm:h-[500px] h-full border-t-4 border-black sm:border-t-4">
             {/* Quiz Header */}
-            <div className="bg-purple-600 text-white p-4 border-b-4 border-black flex items-center justify-between">
+            <div className="bg-purple-600 text-white p-3 sm:p-4 border-b-4 border-black flex items-center justify-between">
               <span className="font-black uppercase tracking-widest">
                 Question {currentQuestionIdx + 1} of {questions.length}
               </span>
@@ -217,12 +343,13 @@ export default function StudentHomeworkViewer() {
             </div>
             
             {/* Quiz Body */}
-            <div className="flex-1 p-6 sm:p-8 overflow-y-auto">
-              <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter mb-8">
-                {questions[currentQuestionIdx].text}
-              </h3>
+            <div className="flex-1 p-4 sm:p-8 overflow-y-auto">
+              <div 
+                className="whitespace-pre-wrap text-lg sm:text-2xl font-black uppercase tracking-tighter mb-6 sm:mb-8 [&_b]:font-black [&_i]:italic [&_s]:line-through [&_ul]:list-disc [&_ul]:pl-6 sm:[&_ul]:pl-8 [&_ol]:list-decimal [&_ol]:pl-6 sm:[&_ol]:pl-8 [&_img]:max-w-full [&_img]:border-4 [&_img]:border-black [&_img]:my-4"
+                dangerouslySetInnerHTML={{ __html: questions[currentQuestionIdx].text }}
+              />
               
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:gap-4">
                 {questions[currentQuestionIdx].type === 'string' ? (
                   <input 
                     type="text"
@@ -293,7 +420,7 @@ export default function StudentHomeworkViewer() {
                 !isSubmitted ? (
                   <button 
                     onClick={submitHomework}
-                    disabled={submitting || isOverdue}
+                    disabled={submitting}
                     className="bg-black text-white px-6 py-2 font-black uppercase tracking-widest border-4 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all disabled:opacity-50"
                   >
                     {submitting ? '...' : 'Submit'}
@@ -316,6 +443,39 @@ export default function StudentHomeworkViewer() {
         )}
 
       </div>
+      
+      {/* Custom Popup Modal */}
+      {modalState.isOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white border-4 border-black w-full max-w-sm shadow-[12px_12px_0px_0px_rgba(147,51,234,1)] flex flex-col">
+            <div className="p-6 text-center flex flex-col gap-4">
+              <h3 className="font-black uppercase tracking-tighter text-2xl">{modalState.title}</h3>
+              <p className="font-bold text-gray-700">{modalState.message}</p>
+            </div>
+            <div className="flex border-t-4 border-black">
+              {modalState.isConfirm && (
+                <button 
+                  onClick={closeModal}
+                  className="flex-1 p-4 font-black uppercase tracking-widest hover:bg-gray-100 transition-colors border-r-4 border-black"
+                >
+                  Cancel
+                </button>
+              )}
+              <button 
+                onClick={() => {
+                  if (modalState.isConfirm && modalState.onConfirm) {
+                    modalState.onConfirm();
+                  }
+                  closeModal();
+                }}
+                className="flex-1 p-4 bg-black text-white font-black uppercase tracking-widest hover:bg-purple-600 transition-colors"
+              >
+                {modalState.isConfirm ? 'Confirm' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

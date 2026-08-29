@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trash2, Edit } from 'lucide-react';
+import { Trash2, Edit, Users } from 'lucide-react';
 
 export default function FacultyClassPage() {
   const { classId } = useParams();
@@ -67,13 +67,6 @@ export default function FacultyClassPage() {
     <div className="flex flex-col w-full h-full min-h-[60vh] gap-4 max-w-4xl mx-auto">
       <div className="bg-white border-4 border-black p-4 md:p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          {classData.logo ? (
-            <img src={classData.logo} alt={classData.name} className="w-16 h-16 border-4 border-black object-cover bg-white shrink-0" />
-          ) : (
-            <div className="w-16 h-16 border-4 border-black bg-purple-100 flex items-center justify-center font-black text-2xl text-purple-800 shrink-0">
-              {classData.name.charAt(0)}
-            </div>
-          )}
           <div>
             <h1 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-purple-600 line-clamp-1">{classData.name}</h1>
             <p className="font-bold text-gray-500 uppercase tracking-widest text-xs mt-1">Class ID: {classId}</p>
@@ -117,6 +110,13 @@ export default function FacultyClassPage() {
                       <span className="bg-emerald-200 text-emerald-800 border-2 border-black px-2 py-1 text-xs font-black uppercase tracking-widest">Published</span>
                     )}
                     <div className="flex gap-2 mt-2">
+                      <button 
+                        onClick={() => navigate(`/faculty/class/${classId}/homework/${hw.id}/submissions`)}
+                        className="p-2 border-2 border-black bg-white hover:bg-blue-100 transition-colors text-blue-600"
+                        title="View Submissions"
+                      >
+                        <Users size={16} />
+                      </button>
                       <button 
                         onClick={() => navigate(`/faculty/class/${classId}/homework/${hw.id}/edit`)}
                         className="p-2 border-2 border-black bg-white hover:bg-purple-100 transition-colors text-purple-600"

@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   const [classSearch, setClassSearch] = useState('');
 
   const [showCreateClass, setShowCreateClass] = useState(false);
-  const [newClassData, setNewClassData] = useState({ name: '', description: '', logo: '', admins: '' });
+  const [newClassData, setNewClassData] = useState({ name: '', description: '', admins: '' });
   const [manageAdminsClass, setManageAdminsClass] = useState<any | null>(null);
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
   const [adminSearchResults, setAdminSearchResults] = useState<any[]>([]);
@@ -306,7 +306,7 @@ export default function AdminDashboard() {
       const json = await res.json();
       if (json.status === 'success') {
         setShowCreateClass(false);
-        setNewClassData({ name: '', description: '', logo: '', admins: '' });
+        setNewClassData({ name: '', description: '', admins: '' });
         fetchClasses();
       } else {
         alert(json.message);
@@ -483,7 +483,6 @@ export default function AdminDashboard() {
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-black text-white uppercase tracking-widest text-xs font-black">
-                  <th className="p-4 border-r-4 border-black w-20 text-center">Logo</th>
                   <th className="p-4 border-r-4 border-black">Class Details</th>
                   <th className="p-4 border-r-4 border-black">Admins</th>
                   <th className="p-4 text-center">Actions</th>
@@ -492,24 +491,15 @@ export default function AdminDashboard() {
               <tbody>
                 {classesLoading ? (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center font-black uppercase tracking-widest border-t-4 border-black">Loading Data...</td>
+                    <td colSpan={3} className="p-8 text-center font-black uppercase tracking-widest border-t-4 border-black">Loading Data...</td>
                   </tr>
                 ) : classes.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center font-black uppercase tracking-widest border-t-4 border-black">No classes found</td>
+                    <td colSpan={3} className="p-8 text-center font-black uppercase tracking-widest border-t-4 border-black">No classes found</td>
                   </tr>
                 ) : (
                   classes.map(c => (
                     <tr key={c.id} className="border-t-4 border-black hover:bg-[#f4f4f5] transition-colors">
-                      <td className="p-4 border-r-4 border-black">
-                        {c.logo ? (
-                          <img src={c.logo} alt="Logo" className="w-12 h-12 border-2 border-black object-cover mx-auto bg-white" />
-                        ) : (
-                          <div className="w-12 h-12 border-2 border-black bg-purple-100 flex items-center justify-center font-black text-purple-800 mx-auto">
-                            {c.name.charAt(0)}
-                          </div>
-                        )}
-                      </td>
                       <td className="p-4 border-r-4 border-black">
                         <div className="font-black uppercase text-lg">{c.name}</div>
                         <div className="text-xs font-bold text-gray-500 mb-2">ID: {c.id}</div>
@@ -880,7 +870,7 @@ export default function AdminDashboard() {
             <form onSubmit={handleCreateClass} className="flex flex-col gap-4">
               <input required type="text" placeholder="Class Name" value={newClassData.name} onChange={e => setNewClassData({ ...newClassData, name: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all" />
               <textarea placeholder="Description" value={newClassData.description} onChange={e => setNewClassData({ ...newClassData, description: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none resize-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all h-24" />
-              <input type="text" placeholder="Logo URI (optional)" value={newClassData.logo} onChange={e => setNewClassData({ ...newClassData, logo: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all" />
+              {/* Logo removed */}
               <input type="text" placeholder="Admin User IDs (comma separated)" value={newClassData.admins} onChange={e => setNewClassData({ ...newClassData, admins: e.target.value })} className="w-full border-4 border-black p-3 font-bold outline-none focus:-translate-y-1 focus:shadow-[4px_4px_0px_0px_rgba(147,51,234,1)] transition-all" />
 
               <div className="flex gap-4 mt-2">

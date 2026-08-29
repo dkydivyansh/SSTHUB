@@ -38,7 +38,8 @@ if (!$userData || ($userData['type'] !== 'faculty' && $userData['type'] !== 'adm
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         $stmt = $conn->prepare("
-            SELECT c.* 
+            SELECT c.*,
+                   (SELECT COUNT(*) FROM class_members cm WHERE cm.class_id = c.id AND cm.user_id NOT IN (SELECT user_id FROM classadmin ca WHERE ca.class_id = c.id)) as members_count
             FROM classes c
             JOIN classadmin ca ON c.id = ca.class_id
             WHERE ca.user_id = :user_id
