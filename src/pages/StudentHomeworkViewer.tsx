@@ -97,7 +97,7 @@ export default function StudentHomeworkViewer() {
                 // Automatically make the uploaded files public so others can view them
                 for (const doc of data.docs) {
                   try {
-                    await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}/permissions`, {
+                    const permRes = await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}/permissions`, {
                       method: 'POST',
                       headers: {
                         'Authorization': `Bearer ${tokenResponse.access_token}`,
@@ -105,8 +105,15 @@ export default function StudentHomeworkViewer() {
                       },
                       body: JSON.stringify({ type: 'anyone', role: 'reader' })
                     });
+                    
+                    if (!permRes.ok) {
+                      const errorData = await permRes.json();
+                      console.error("Permission update failed:", errorData);
+                      showInfo('Warning', `We couldn't automatically make "${doc.name}" public. Your teacher might not be able to view it. Please ensure the file's sharing settings in Google Drive allow anyone with the link to view it.`);
+                    }
                   } catch (e) {
                     console.error("Failed to update file permissions automatically", e);
+                    showInfo('Warning', `A network error occurred while trying to update permissions for "${doc.name}". Please check the sharing settings manually.`);
                   }
                 }
               }
@@ -129,11 +136,18 @@ export default function StudentHomeworkViewer() {
       return;
     }
 
+    let type = hw?.extras?.type || 'media';
+    if (type === 'none') type = 'media';
+
+    if (type === 'media' && files.length === 0) {
+      showInfo('Submission Error', 'Please attach at least one file before submitting your work.');
+      return;
+    }
+
     showConfirm('Submit Homework', 'Are you sure you want to turn in your work?', async () => {
       setSubmitting(true);
       
       let submissionData = {};
-      const type = hw?.extras?.type || 'media';
       
       if (type === 'media') {
         submissionData = { files };

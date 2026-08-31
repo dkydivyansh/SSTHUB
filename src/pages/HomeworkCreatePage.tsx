@@ -154,7 +154,7 @@ export default function HomeworkCreatePage() {
                 setAttachments(prev => [...prev, { name: doc.name, url: doc.url }]);
                 
                 try {
-                  await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}/permissions`, {
+                  const permRes = await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}/permissions`, {
                     method: 'POST',
                     headers: {
                       'Authorization': `Bearer ${tokenResponse.access_token}`,
@@ -162,8 +162,15 @@ export default function HomeworkCreatePage() {
                     },
                     body: JSON.stringify({ type: 'anyone', role: 'reader' })
                   });
+                  
+                  if (!permRes.ok) {
+                    const errorData = await permRes.json();
+                    console.error("Permission update failed:", errorData);
+                    alert(`Warning: We couldn't automatically make "${doc.name}" public. Students might not be able to view it. Please check the file's sharing settings in Google Drive.`);
+                  }
                 } catch (e) {
                   console.error("Failed to update file permissions automatically", e);
+                  alert(`Warning: A network error occurred while trying to update permissions for "${doc.name}". Please check the sharing settings manually.`);
                 }
               }
             })

@@ -193,10 +193,15 @@ export default function FacultyHomeworkSubmissionsPage() {
             </div>
 
             <div className="flex flex-col gap-4 overflow-y-auto max-h-[60vh] p-1">
-              {(!modalState.student.submission || modalState.student.submission.length === 0) ? (
-                <p className="text-gray-500 font-bold italic text-center py-8">No files were attached to this submission.</p>
-              ) : (
-                modalState.student.submission.map((file: any, idx: number) => (
+              {(() => {
+                const submission = modalState.student.submission;
+                const files = Array.isArray(submission) ? submission : (submission?.files || []);
+                
+                if (!files || files.length === 0) {
+                  return <p className="text-gray-500 font-bold italic text-center py-8">No files were attached to this submission.</p>;
+                }
+                
+                return files.map((file: any, idx: number) => (
                   <a 
                     key={idx} 
                     href={file.url} 
@@ -210,8 +215,8 @@ export default function FacultyHomeworkSubmissionsPage() {
                     </div>
                     <ExternalLink size={20} className="text-gray-400 group-hover:text-black shrink-0 ml-4" />
                   </a>
-                ))
-              )}
+                ));
+              })()}
             </div>
             
             <div className="mt-8 flex justify-end">
