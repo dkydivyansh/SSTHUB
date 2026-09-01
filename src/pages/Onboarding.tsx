@@ -51,25 +51,15 @@ export default function Onboarding() {
 
   type StepType = 'none' | 'group' | 'about' | 'interests' | 'social_github' | 'social_linkedin' | 'social_instagram' | 'social_portfolio';
   const baseSteps: { text: string, type: StepType, facultySkip?: boolean }[] = [
-    { text: `Hi${userName ? ' ' + userName : ''}, I'm Zeo!`, type: 'none' },
-    { text: "Welcome to the SST Hub.", type: 'none' },
+    { text: `Hi${userName ? ' ' + userName : ''}, welcome to SST Hub! Let's get your profile set up.`, type: 'none' },
     { text: "First, what class group are you in?", type: 'group', facultySkip: true },
     { text: "Awesome! Tell us a little bit about yourself.", type: 'about' },
     { text: "Got it! What are your hobbies and interests?", type: 'interests' },
-    { text: "Wow, those are some really cool hobbies!", type: 'none' },
     { text: "Do you have a GitHub? Drop your username.", type: 'social_github', facultySkip: true },
     { text: "How about LinkedIn? What's your handle?", type: 'social_linkedin' },
     { text: "Any Instagram? For those aesthetic campus pics.", type: 'social_instagram', facultySkip: true },
     { text: "Finally, a Portfolio or HackerOne link?", type: 'social_portfolio' },
-    { text: "Your profile is saved! By the way, your profile photo and name are synced securely with your Google account.", type: 'none' },
-    { text: "Also, this platform was created by dkydivyansh - dkydivyansh.com.", type: 'none' },
-    { text: "You can add research papers and connect your ORCID through the Profile Edit page.", type: 'none' },
-    { text: "You can also adjust your privacy settings there if you prefer to keep your profile private.", type: 'none' },
-    { text: "Before you go, please familiarize yourself with our Code of Conduct to ensure a safe community.", type: 'none', facultySkip: true },
-    { text: "To join groups, head over to the Community tab and search for them.", type: 'none', facultySkip: true },
-    { text: "Make sure to join the SST General group first!", type: 'none', facultySkip: true },
-    { text: "You can also directly message faculty and peers, or browse the directory in the Social tab.", type: 'none' },
-    { text: "You're all set! Let's explore the campus directory.", type: 'none' }
+    { text: "Your profile is saved! You're all set to explore.", type: 'none' }
   ];
 
   const steps = baseSteps.filter(s => !(isFaculty && s.facultySkip));
