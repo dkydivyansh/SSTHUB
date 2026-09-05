@@ -1,6 +1,0 @@
-{
-  "name": "College App Hero Explorations",
-  "description": "Four unique design variants for a college application landing page, featuring schedules, events, and house announcements.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
