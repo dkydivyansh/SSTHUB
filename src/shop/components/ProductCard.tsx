@@ -41,13 +41,21 @@ export default function ProductCard({ product }: { product: Product }) {
           {pct > 0 && (
             <span className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-black px-2 py-1 border-r-4 border-b-4 border-black uppercase">{pct}% off</span>
           )}
+          {product.quantity <= 0 && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <span className="bg-white text-red-600 px-2 py-1 border-4 border-black font-black uppercase text-xs rotate-[-12deg]">Sold Out</span>
+            </div>
+          )}
         </div>
         <div className="flex items-baseline gap-2">
           <span className="font-black text-lg">₹{effectivePrice(product)}</span>
           {pct > 0 && <span className="text-xs line-through text-gray-500 font-bold">₹{product.price}</span>}
         </div>
         <h3 className="font-bold text-sm leading-tight line-clamp-2">{product.title}</h3>
-        <p className="text-xs font-bold uppercase text-gray-500">{product.unit}</p>
+        <div className="flex justify-between items-center mt-1">
+          <p className="text-[10px] font-black uppercase text-gray-500 bg-gray-100 border-2 border-gray-200 px-1">{product.unit}</p>
+          {product.quantity > 0 && product.quantity <= 5 && <p className="text-[10px] font-black uppercase text-orange-600 bg-orange-100 border-2 border-orange-200 px-1">Only {product.quantity} left</p>}
+        </div>
       </Link>
       <QtyStepper sku={product.sku} max={product.quantity} size="sm" />
     </div>

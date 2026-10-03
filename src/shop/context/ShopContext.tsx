@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Campus, Order, OrderStatus } from '../types';
-import { effectivePrice, getProduct, getStore } from '../data/mock';
+import type { Campus, Order, OrderStatus, Category, Store, Product } from '../types';
+import { effectivePrice } from '../data/mock';
 
 const LS_CART = 'shop_cart_v1';
 const LS_CAMPUS = 'shop_campus_v1';
@@ -22,6 +22,10 @@ interface ShopCtx {
   total: number;
   orders: Order[];
   placeOrder: (address: string, payment: 'COD' | 'UPI') => Order[];
+  categories: Category[];
+  stores: Store[];
+  products: Product[];
+  catalogLoading: boolean;
 }
 
 const Ctx = createContext<ShopCtx | null>(null);
@@ -39,6 +43,15 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [campus, setCampusState] = useState<Campus | null>(() => read<Campus | null>(LS_CAMPUS, null));
   const [cart, setCart] = useState<Record<string, number>>(() => read(LS_CART, {}));
   const [orders, setOrders] = useState<Order[]>(() => read(LS_ORDERS, []));
+  const [catalog, setCatalog] = useState<{ categories: Category[], stores: Store[], products: Product[] }>({ categories: [], stores: [], products: [] });
+  const [catalogLoading, setCatalogLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/shop_catalog')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setCatalog(d.data); })
+      .finally(() => setCatalogLoading(false));
+  }, []);
 
   useEffect(() => localStorage.setItem(LS_CART, JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem(LS_ORDERS, JSON.stringify(orders)), [orders]);
@@ -49,10 +62,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   };
 
   const add = useCallback((sku: string) => {
-    const p = getProduct(sku);
+    const p = catalog.products.find(x => x.sku === sku);
     if (!p) return;
     setCart(c => ((c[sku] || 0) >= p.quantity ? c : { ...c, [sku]: (c[sku] || 0) + 1 }));
-  }, []);
+  }, [catalog]);
 
   const remove = useCallback((sku: string) => {
     setCart(c => {
@@ -68,13 +81,13 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const { count, subtotal } = useMemo(() => {
     let count = 0, subtotal = 0;
     for (const [sku, qty] of Object.entries(cart)) {
-      const p = getProduct(sku);
+      const p = catalog.products.find(x => x.sku === sku);
       if (!p) continue;
       count += qty;
-      subtotal += effectivePrice(p) * qty;
+      subtotal += effectivePrice(p as any) * qty;
     }
     return { count, subtotal };
-  }, [cart]);
+  }, [cart, catalog]);
 
   const deliveryFee = count === 0 || subtotal >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
   const total = subtotal + deliveryFee;
@@ -83,10 +96,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const placeOrder = (address: string, payment: 'COD' | 'UPI') => {
     const byStore = new Map<number, Order['lines']>();
     for (const [sku, qty] of Object.entries(cart)) {
-      const p = getProduct(sku);
+      const p = catalog.products.find(x => x.sku === sku);
       if (!p) continue;
       const lines = byStore.get(p.store_id) || [];
-      lines.push({ sku, title: p.title, price: effectivePrice(p), qty, image: p.featured_image });
+      lines.push({ sku, title: p.title, price: effectivePrice(p as any), qty, image: p.featured_image });
       byStore.set(p.store_id, lines);
     }
     const created: Order[] = [];
@@ -97,7 +110,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         id: 'SH' + Date.now().toString(36).toUpperCase() + storeId,
         placed_at: Date.now(),
         store_id: storeId,
-        store_name: getStore(storeId)?.name || 'Store',
+        store_name: catalog.stores.find(s => s.id === storeId)?.name || 'Store',
         lines, subtotal: sub, delivery_fee: fee, total: sub + fee,
         payment_method: payment, address, status: 'placed' as OrderStatus,
       });
@@ -108,7 +121,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ campus, setCampus, cart, add, remove, clear, count, subtotal, deliveryFee, total, orders, placeOrder }}>
+    <Ctx.Provider value={{ campus, setCampus, cart, add, remove, clear, count, subtotal, deliveryFee, total, orders, placeOrder, ...catalog, catalogLoading }}>
       {children}
     </Ctx.Provider>
   );

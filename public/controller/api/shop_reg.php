@@ -52,7 +52,7 @@ $lite->exec("CREATE TABLE IF NOT EXISTS shop_applications (
     thumbnail TEXT,
     owners TEXT NOT NULL,       -- JSON array of {id, mobile}
     categories TEXT NOT NULL,   -- JSON array of category ids
-    custom_categories TEXT NOT NULL DEFAULT '[]', -- JSON array of free-text categories ("Other")
+    custom_categories TEXT NOT NULL DEFAULT '[]', -- JSON array of free-text categories (\"Other\")
     status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 )");
@@ -61,6 +61,7 @@ $lite->exec("CREATE INDEX IF NOT EXISTS idx_shop_app_status ON shop_applications
 // Upgrade tables created before custom categories existed
 $cols = array_column($lite->query("PRAGMA table_info(shop_applications)")->fetchAll(PDO::FETCH_ASSOC), 'name');
 if (!in_array('custom_categories', $cols)) $lite->exec("ALTER TABLE shop_applications ADD COLUMN custom_categories TEXT NOT NULL DEFAULT '[]'");
+if (!in_array('campus', $cols)) $lite->exec("ALTER TABLE shop_applications ADD COLUMN campus TEXT NOT NULL DEFAULT 'uni1'");
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -82,7 +83,16 @@ try {
         $me = $stmt->fetch(PDO::FETCH_ASSOC);
         $apps = $lite->prepare("SELECT id, name, status, created_at FROM shop_applications WHERE applicant_id = ? ORDER BY id DESC");
         $apps->execute([$user_id]);
-        out(['status' => 'success', 'data' => ['me' => $me, 'applications' => $apps->fetchAll(PDO::FETCH_ASSOC)]]);
+        
+        $has_shop = $conn->prepare("SELECT COUNT(*) FROM shop_store_owners WHERE user_id = ?");
+        $has_shop->execute([$user_id]);
+        $is_owner = (int)$has_shop->fetchColumn() > 0;
+
+        out(['status' => 'success', 'data' => [
+            'me' => $me, 
+            'applications' => $apps->fetchAll(PDO::FETCH_ASSOC),
+            'has_shop' => $is_owner
+        ]]);
     }
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') out(['status' => 'error', 'message' => 'Method not allowed'], 405);
@@ -128,12 +138,19 @@ try {
     $owners = array_values($owners);
     if (count($owners) > 5) out(['status' => 'error', 'message' => 'Maximum 5 owners'], 422);
 
+    $check_owner = $conn->prepare("SELECT COUNT(*) FROM shop_store_owners WHERE user_id = ?");
+    $check_owner->execute([$user_id]);
+    if ((int)$check_owner->fetchColumn() > 0) out(['status' => 'error', 'message' => 'You already own a shop on this platform'], 403);
+
     $pending = $lite->prepare("SELECT COUNT(*) FROM shop_applications WHERE applicant_id = ? AND status = 'pending'");
     $pending->execute([$user_id]);
-    if ((int)$pending->fetchColumn() >= 3) out(['status' => 'error', 'message' => 'You already have 3 pending applications'], 429);
+    if ((int)$pending->fetchColumn() >= 1) out(['status' => 'error', 'message' => 'You already have a pending application. Please wait for it to be reviewed.'], 429);
+    
+    $campus = $in['campus'] ?? [];
+    if (!is_array($campus) || count($campus) === 0) out(['status' => 'error', 'message' => 'Select at least one serving location (campus)'], 422);
 
-    $ins = $lite->prepare("INSERT INTO shop_applications (applicant_id, name, description, thumbnail, owners, categories, custom_categories) VALUES (?,?,?,?,?,?,?)");
-    $ins->execute([$user_id, $name, $desc, $thumb, json_encode($owners), json_encode($cats), json_encode($custom, JSON_UNESCAPED_UNICODE)]);
+    $ins = $lite->prepare("INSERT INTO shop_applications (applicant_id, name, description, thumbnail, owners, categories, custom_categories, campus) VALUES (?,?,?,?,?,?,?,?)");
+    $ins->execute([$user_id, $name, $desc, $thumb, json_encode($owners), json_encode($cats), json_encode($custom, JSON_UNESCAPED_UNICODE), implode(',', $campus)]);
     out(['status' => 'success', 'data' => ['id' => (int)$lite->lastInsertId()]]);
 } catch (Exception $e) {
     out(['status' => 'error', 'message' => 'Server error', 'debug' => $e->getMessage()], 500);

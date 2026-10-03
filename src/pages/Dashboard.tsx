@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck, FileText, StickyNote, PartyPopper } from 'lucide-react';
+import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck, FileText, StickyNote, PartyPopper, ShoppingBag } from 'lucide-react';
 import PostCard from '../components/PostCard';
 
 export default function Dashboard() {
@@ -140,6 +140,21 @@ export default function Dashboard() {
             <span className="font-black uppercase tracking-widest text-center text-[10px] sm:text-xs">Manage Classes (Faculty)</span>
           </Link>
         )}
+        <div className="col-span-2 sm:col-span-1 block">
+          <Link 
+            to="/shop"
+            className="w-full h-full relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-yellow-300 border-4 border-black p-5 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group overflow-hidden"
+          >
+            <motion.div 
+              animate={{ opacity: [0, 0.4, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+              className="absolute inset-0 bg-white pointer-events-none"
+            />
+            <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 border-2 border-black animate-pulse z-10">🔥 LIVE</div>
+            <ShoppingBag className="text-black w-8 h-8 sm:w-8 sm:h-8 mb-1 group-hover:scale-110 transition-transform relative z-10" />
+            <span className="font-black uppercase tracking-widest text-black text-center text-xs sm:text-xs relative z-10">SST Shop</span>
+          </Link>
+        </div>
         <Link 
           to="/dash/calendar/2026-27"
           className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-white border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group"
@@ -157,11 +172,7 @@ export default function Dashboard() {
           <PartyPopper className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1 group-hover:text-[#3B82F6] transition-colors" />
           <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">Events</span>
         </Link>
-        <button disabled className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-gray-100 border-4 border-black p-3 sm:p-6 opacity-60 cursor-not-allowed hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
-          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-yellow-400 text-black text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-1 sm:px-2 py-0.5 sm:py-1 border-2 border-black">SOON</div>
-          <BookOpen className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1" />
-          <span className="font-black uppercase tracking-widest text-black text-center text-[10px] sm:text-xs">Syllabus</span>
-        </button>
+
         <Link 
           to="/dash/class"
           className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-white border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group"

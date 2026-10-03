@@ -11,7 +11,10 @@ export default function ShopAdmin() {
   const [apps, setApps] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [live, setLive] = useState<any[]>([]);
-  const [tab, setTab] = useState<'apps' | 'live'>('apps');
+  const [tab, setTab] = useState<'apps' | 'live' | 'cats'>('apps');
+
+  const [editingCat, setEditingCat] = useState<any>(null);
+  const [catImageFile, setCatImageFile] = useState<File | null>(null);
 
   const [reviewId, setReviewId] = useState<number | null>(null);
   const [appDetails, setAppDetails] = useState<any>(null);
@@ -46,7 +49,7 @@ export default function ShopAdmin() {
         const m: any = {};
         d.data.custom_categories.forEach((c: string) => { m[c] = { mode: 'new', category_id: '' }; });
         setMapForm(m);
-        setCampus([]);
+        setCampus(d.data.campus || []);
       }
     });
   };
@@ -62,6 +65,33 @@ export default function ShopAdmin() {
     }).catch(() => setError('Network error')).finally(() => setActionLoading(false));
   };
 
+  const submitCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true); setError('');
+    try {
+      let imageUrl = editingCat.image;
+      if (catImageFile) {
+        const fd = new FormData();
+        fd.append('file', catImageFile);
+        const r1 = await fetch(`${API}?action=category_image`, { method: 'POST', body: fd });
+        const d1 = await r1.json();
+        if (d1.status !== 'success') throw new Error(d1.message || 'Image upload failed');
+        imageUrl = d1.url;
+      }
+      const r2 = await fetch(API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'category_save', ...editingCat, image: imageUrl })
+      });
+      const d2 = await r2.json();
+      if (d2.status === 'success') { setEditingCat(null); loadAll(); }
+      else throw new Error(d2.message);
+    } catch (err: any) {
+      setError(err.message || 'Error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-xl font-black uppercase">Loading Admin...</div>;
 
   return (
@@ -71,6 +101,7 @@ export default function ShopAdmin() {
       <div className="flex gap-2 mb-6">
         <button onClick={() => setTab('apps')} className={`px-4 py-2 border-4 border-black font-black uppercase ${tab === 'apps' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Applications</button>
         <button onClick={() => setTab('live')} className={`px-4 py-2 border-4 border-black font-black uppercase ${tab === 'live' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Live Stores</button>
+        <button onClick={() => setTab('cats')} className={`px-4 py-2 border-4 border-black font-black uppercase ${tab === 'cats' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Categories</button>
       </div>
 
       {tab === 'apps' && (
@@ -108,6 +139,64 @@ export default function ShopAdmin() {
             </div>
           ))}
         </div>
+      )}
+
+      {tab === 'cats' && !editingCat && (
+        <div>
+          <button onClick={() => { setEditingCat({ id: 0, name: '', slug: '', image: '', is_active: true }); setCatImageFile(null); }} className="mb-6 bg-black text-white px-6 py-2 font-black uppercase shadow-[4px_4px_0_0_#FFF5E1] border-4 border-black hover:-translate-y-1">
+            + New Category
+          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {cats.map(c => (
+              <div key={c.id} className="bg-white border-4 border-black p-4 shadow-[4px_4px_0_0_#000] flex flex-col items-center gap-2 text-center">
+                <img src={c.image || 'https://via.placeholder.com/150'} alt="" className="w-24 h-24 object-cover border-4 border-black bg-gray-100" />
+                <h3 className="font-black uppercase text-lg">{c.name}</h3>
+                <p className="text-xs font-bold text-gray-500">Products: {c.product_count || 0}</p>
+                <div className="mt-2 flex gap-2">
+                  <span className={`text-xs px-2 py-1 border-2 border-black font-black uppercase ${c.is_active ? 'bg-emerald-300' : 'bg-red-300'}`}>{c.is_active ? 'Active' : 'Hidden'}</span>
+                  <button onClick={() => { setEditingCat(c); setCatImageFile(null); }} className="text-xs px-2 py-1 border-2 border-black bg-yellow-300 font-black uppercase hover:-translate-y-1">Edit</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'cats' && editingCat && (
+        <form onSubmit={submitCategory} className="bg-white border-4 border-black shadow-[8px_8px_0_0_#000] p-6 sm:p-8 max-w-2xl mx-auto flex flex-col gap-6">
+          <div className="flex justify-between items-center border-b-4 border-black pb-4">
+            <h2 className="text-2xl font-black uppercase">{editingCat.id ? 'Edit Category' : 'New Category'}</h2>
+            <button type="button" onClick={() => setEditingCat(null)} className="hover:bg-red-500 hover:text-white p-1 border-2 border-transparent hover:border-black transition-all"><X /></button>
+          </div>
+          {error && <div className="bg-red-300 border-4 border-black p-4 font-black uppercase">{error}</div>}
+          
+          <div className="flex flex-col gap-2">
+            <label className="font-black uppercase text-sm">Name</label>
+            <input required value={editingCat.name} onChange={e => setEditingCat({...editingCat, name: e.target.value, slug: editingCat.id ? editingCat.slug : e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} className="border-4 border-black p-3 font-bold" />
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <label className="font-black uppercase text-sm">Slug</label>
+            <input required value={editingCat.slug} onChange={e => setEditingCat({...editingCat, slug: e.target.value})} className="border-4 border-black p-3 font-bold" />
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <label className="font-black uppercase text-sm">Image</label>
+            <div className="flex items-center gap-4">
+              <img src={catImageFile ? URL.createObjectURL(catImageFile) : (editingCat.image || 'https://via.placeholder.com/150')} alt="" className="w-24 h-24 object-cover border-4 border-black bg-gray-100" />
+              <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && setCatImageFile(e.target.files[0])} className="font-bold text-sm" />
+            </div>
+          </div>
+          
+          <label className="flex items-center gap-2 cursor-pointer font-black uppercase">
+            <input type="checkbox" checked={editingCat.is_active} onChange={e => setEditingCat({...editingCat, is_active: e.target.checked})} className="w-5 h-5 accent-black" />
+            Active (Visible)
+          </label>
+          
+          <button disabled={actionLoading} className="bg-emerald-400 text-black border-4 border-black py-3 font-black uppercase hover:-translate-y-1 shadow-[4px_4px_0_0_#000] transition-all disabled:opacity-50">
+            {actionLoading ? 'Saving...' : 'Save Category'}
+          </button>
+        </form>
       )}
 
       {reviewId && (

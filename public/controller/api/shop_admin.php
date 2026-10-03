@@ -64,10 +64,11 @@ try {
     $lite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $lite->exec("CREATE TABLE IF NOT EXISTS shop_applications (
         id INTEGER PRIMARY KEY AUTOINCREMENT, applicant_id INTEGER NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL,
-        thumbnail TEXT, owners TEXT NOT NULL, categories TEXT NOT NULL, custom_categories TEXT NOT NULL DEFAULT '[]',
+        thumbnail TEXT, owners TEXT NOT NULL, categories TEXT NOT NULL, custom_categories TEXT NOT NULL DEFAULT '[]', campus TEXT NOT NULL DEFAULT 'UNI1',
         status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)");
     $cols = array_column($lite->query("PRAGMA table_info(shop_applications)")->fetchAll(PDO::FETCH_ASSOC), 'name');
     if (!in_array('custom_categories', $cols)) $lite->exec("ALTER TABLE shop_applications ADD COLUMN custom_categories TEXT NOT NULL DEFAULT '[]'");
+    if (!in_array('campus', $cols)) $lite->exec("ALTER TABLE shop_applications ADD COLUMN campus TEXT NOT NULL DEFAULT 'UNI1'");
     if (!in_array('merged_store_id', $cols)) $lite->exec("ALTER TABLE shop_applications ADD COLUMN merged_store_id INTEGER");
     if (!in_array('reviewed_by', $cols)) $lite->exec("ALTER TABLE shop_applications ADD COLUMN reviewed_by INTEGER");
     if (!in_array('reviewed_at', $cols)) $lite->exec("ALTER TABLE shop_applications ADD COLUMN reviewed_at TEXT");
@@ -115,6 +116,7 @@ try {
                 'status' => $app['status'], 'created_at' => $app['created_at'], 'merged_store_id' => $app['merged_store_id'],
                 'owners' => $owners, 'categories' => $cats,
                 'custom_categories' => json_decode($app['custom_categories'], true) ?: [],
+                'campus' => array_filter(explode(',', $app['campus'] ?? '')),
             ]]);
         }
 
@@ -124,7 +126,48 @@ try {
         }
 
         case 'categories':
-            out(['status' => 'success', 'data' => $conn->query("SELECT id, name, slug FROM shop_categories WHERE is_active = 1 ORDER BY sort_order, name")->fetchAll(PDO::FETCH_ASSOC)]);
+            $q = $conn->query("SELECT c.id, c.name, c.slug, c.image, c.is_active, 
+                  (SELECT COUNT(*) FROM shop_product_categories pc WHERE pc.category_id = c.id) as product_count 
+                FROM shop_categories c ORDER BY c.sort_order, c.name")->fetchAll(PDO::FETCH_ASSOC);
+            out(['status' => 'success', 'data' => $q]);
+
+        case 'category_save': {
+            $id = (int)($body['id'] ?? 0);
+            $name = trim($body['name'] ?? '');
+            $slug = trim($body['slug'] ?? '');
+            $image = trim($body['image'] ?? '');
+            $is_active = (int)!empty($body['is_active']);
+            if (!$name || !$slug) out(['status' => 'error', 'message' => 'Name and slug required'], 400);
+            
+            if ($id > 0) {
+                $conn->prepare("UPDATE shop_categories SET name=?, slug=?, image=?, is_active=? WHERE id=?")->execute([$name, $slug, $image, $is_active, $id]);
+            } else {
+                $conn->prepare("INSERT INTO shop_categories (name, slug, image, is_active) VALUES (?,?,?,?)")->execute([$name, $slug, $image, $is_active]);
+                $id = $conn->lastInsertId();
+            }
+            out(['status' => 'success', 'id' => $id]);
+        }
+
+        case 'category_image': {
+            if (!isset($_FILES['file'])) out(['status' => 'error', 'message' => 'No file'], 400);
+            $f = $_FILES['file'];
+            if ($f['error'] !== UPLOAD_ERR_OK || $f['size'] > 2 * 1024 * 1024) out(['status' => 'error', 'message' => 'Upload error or >2MB'], 400);
+            
+            $dir = __DIR__ . '/../../../storage/uploads/category';
+            if (!is_dir($dir)) mkdir($dir, 0775, true);
+            $filename = uniqid('cat_') . '.png';
+            $path = "$dir/$filename";
+            
+            if (function_exists('imagecreatefromstring')) {
+                $im = @imagecreatefromstring(file_get_contents($f['tmp_name']));
+                if ($im) {
+                    imagepng($im, $path);
+                    imagedestroy($im);
+                } else move_uploaded_file($f['tmp_name'], $path);
+            } else move_uploaded_file($f['tmp_name'], $path);
+            
+            out(['status' => 'success', 'url' => "/api/shop_manage?action=get_cat_image&file=$filename"]);
+        }
 
         case 'live': {
             $rows = $conn->query("SELECT s.id, s.name, s.campus, s.is_open, s.is_active, (s.logo IS NOT NULL AND s.logo <> '') AS has_image,
@@ -134,9 +177,16 @@ try {
         }
 
         case 'store_image': {
-            $s = $conn->prepare("SELECT logo FROM shop_stores WHERE id = ?");
-            $s->execute([(int)($_GET['id'] ?? 0)]);
-            sendDataUri($s->fetchColumn() ?: null);
+            $id = (int)($_GET['id'] ?? 0);
+            $path = __DIR__ . '/../../../storage/uploads/store/' . $id . '.png';
+            if (file_exists($path)) {
+                header('Content-Type: image/png');
+                header('Cache-Control: public, max-age=86400');
+                readfile($path);
+                exit();
+            }
+            http_response_code(404);
+            exit();
         }
 
         case 'reject': {
@@ -187,9 +237,33 @@ try {
                 }
                 $catIds = array_values(array_unique($catIds));
 
-                $conn->prepare("INSERT INTO shop_stores (name, description, logo, banner, campus) VALUES (?,?,?,?,?)")
-                    ->execute([$app['name'], $app['description'], $app['thumbnail'], $app['thumbnail'], implode(',', $campus)]);
-                $storeId = (int)$conn->lastInsertId();
+                $storeId = random_int(1000000, 9999999);
+                while ($conn->query("SELECT id FROM shop_stores WHERE id = $storeId")->fetchColumn()) {
+                    $storeId = random_int(1000000, 9999999);
+                }
+
+                $conn->prepare("INSERT INTO shop_stores (id, name, description, logo, banner, campus) VALUES (?,?,?,?,?,?)")
+                    ->execute([$storeId, $app['name'], $app['description'], '', '', implode(',', $campus)]);
+
+                if ($app['thumbnail'] && preg_match('#^data:image/(jpeg|png|webp|gif);base64,(.+)$#s', $app['thumbnail'], $m)) {
+                    $imgData = base64_decode($m[2]);
+                    $storeDir = __DIR__ . '/../../../storage/uploads/store';
+                    if (!is_dir($storeDir)) @mkdir($storeDir, 0775, true);
+                    $path = $storeDir . '/' . $storeId . '.png';
+                    
+                    if (function_exists('imagecreatefromstring')) {
+                        $im = @imagecreatefromstring($imgData);
+                        if ($im) {
+                            imagepng($im, $path);
+                            imagedestroy($im);
+                        } else {
+                            file_put_contents($path, $imgData);
+                        }
+                    } else {
+                        file_put_contents($path, $imgData);
+                    }
+                    $conn->prepare("UPDATE shop_stores SET logo=?, banner=? WHERE id=?")->execute(['1', '1', $storeId]);
+                }
 
                 $so = $conn->prepare("INSERT IGNORE INTO shop_store_owners (store_id, user_id, mobile, role) VALUES (?,?,?, 'owner')");
                 foreach (json_decode($app['owners'], true) ?: [] as $o) $so->execute([$storeId, (int)$o['id'], $o['mobile'] ?? null]);
@@ -198,7 +272,7 @@ try {
                 foreach ($catIds as $cid) $sc->execute([$storeId, $cid]);
 
                 $conn->commit();
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 if ($conn->inTransaction()) $conn->rollBack();
                 $lite->prepare("UPDATE shop_applications SET status='pending' WHERE id=?")->execute([$id]);
                 throw $e;
@@ -210,6 +284,6 @@ try {
         }
     }
     out(['status' => 'error', 'message' => 'Unknown action'], 400);
-} catch (Exception $e) {
+} catch (Throwable $e) {
     out(['status' => 'error', 'message' => 'Server error', 'debug' => $e->getMessage()], 500);
 }

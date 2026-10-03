@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, ImagePlus, Loader2, Search, Store, UserPlus, X } from 'lucide-react';
 import { CATEGORIES } from '../data/mock';
+import { CAMPUSES } from '../types';
 
 interface UserLite { id: number; email: string; name: string; rollno: string; avatar?: string }
 interface App { id: number; name: string; status: string; created_at: string }
@@ -29,12 +30,14 @@ export default function ShopRegister() {
   const navigate = useNavigate();
   const [me, setMe] = useState<UserLite | null>(null);
   const [apps, setApps] = useState<App[]>([]);
+  const [hasShop, setHasShop] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [thumbnail, setThumbnail] = useState('');
   const [cats, setCats] = useState<number[]>([]);
+  const [campus, setCampus] = useState<string[]>([]);
   const [otherOn, setOtherOn] = useState(false);
   const [customCats, setCustomCats] = useState<string[]>(['']);
   const [myMobile, setMyMobile] = useState('');
@@ -49,8 +52,14 @@ export default function ShopRegister() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = () => fetch(API).then(r => r.json()).then(d => {
-    if (d.status === 'success') { setMe(d.data.me); setApps(d.data.applications); } else navigate('/login');
-  }).catch(() => navigate('/login')).finally(() => setLoading(false));
+    if (d.status === 'success') { 
+      setMe(d.data.me); 
+      setApps(d.data.applications); 
+      setHasShop(d.data.has_shop);
+    } 
+    else if (d.message?.includes('Unauthorized')) navigate('/login');
+    else setError(d.message || 'Failed to load');
+  }).catch(e => setError(e.message)).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
   // Debounced owner search (by email / roll no / name)
@@ -84,7 +93,7 @@ export default function ShopRegister() {
       const r = await fetch(API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, description, thumbnail, categories: cats, custom_categories: custom,
+          name, description, thumbnail, categories: cats, custom_categories: otherOn ? customCats : [], campus,
           owners: [{ ident: me?.email, mobile: myMobile }, ...owners.map(o => ({ ident: o.email, mobile: mobiles[o.id] }))],
         }),
       });
@@ -134,7 +143,19 @@ export default function ShopRegister() {
           </div>
         )}
 
-        <form onSubmit={submit} className="bg-white border-4 border-black shadow-[8px_8px_0_0_#000] p-5 sm:p-8 flex flex-col gap-6">
+        {hasShop ? (
+          <div className="bg-emerald-300 border-4 border-black shadow-[8px_8px_0_0_#000] p-8 text-center">
+            <h2 className="text-3xl font-black uppercase mb-4">You already own a shop!</h2>
+            <p className="font-bold mb-6">You are already registered as a shop owner on the platform.</p>
+            <Link to="/shop-manage" className="inline-block bg-black text-white px-6 py-3 font-black uppercase border-4 border-black hover:-translate-y-1 transition-all">Go to Shop Manager</Link>
+          </div>
+        ) : apps.some(a => a.status === 'pending') ? (
+          <div className="bg-yellow-300 border-4 border-black shadow-[8px_8px_0_0_#000] p-8 text-center">
+            <h2 className="text-3xl font-black uppercase mb-4">Application Pending</h2>
+            <p className="font-bold">You already have a shop application waiting for review. Please wait for the admins to process it.</p>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="bg-white border-4 border-black shadow-[8px_8px_0_0_#000] p-5 sm:p-8 flex flex-col gap-6">
           <div>
             <label className={label} htmlFor="shop-name">Shop name</label>
             <input id="shop-name" className={field} value={name} onChange={e => setName(e.target.value)} required minLength={3} maxLength={80} placeholder="e.g. Midnight Munchies" />
@@ -144,6 +165,20 @@ export default function ShopRegister() {
             <label className={label} htmlFor="shop-desc">Description</label>
             <textarea id="shop-desc" className={field + ' min-h-28'} value={description} onChange={e => setDescription(e.target.value)} required minLength={10} maxLength={1000} placeholder="What do you sell? Timings, specialties..." />
             <p className="text-xs font-bold text-right text-gray-500">{description.length}/1000</p>
+          </div>
+
+          <div>
+            <span className={label}>Serving Locations (Campuses)</span>
+            <div className="flex flex-wrap gap-3">
+              {CAMPUSES.map(c => {
+                const on = campus.includes(c.id);
+                return (
+                  <button key={c.id} type="button" onClick={() => setCampus(on ? campus.filter(x => x !== c.id) : [...campus, c.id])} className={`px-4 py-2 border-4 border-black font-black uppercase text-sm shadow-[4px_4px_0_0_#000] hover:-translate-y-1 transition-all ${on ? 'bg-[#3B82F6] text-white' : 'bg-white'}`}>
+                    {on && <Check size={16} className="inline mr-2" strokeWidth={4} />}{c.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>
@@ -230,6 +265,7 @@ export default function ShopRegister() {
             {submitting ? 'Submitting...' : 'Submit application'}
           </button>
         </form>
+        )}
       </main>
     </div>
   );

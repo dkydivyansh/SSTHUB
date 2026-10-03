@@ -50,6 +50,14 @@ if ($request_uri === '/api/shop_admin') {
     require_once __DIR__ . '/controller/api/shop_admin.php';
     exit();
 }
+if ($request_uri === '/api/shop_manage') {
+    require_once __DIR__ . '/controller/api/shop_manage.php';
+    exit();
+}
+if ($request_uri === '/api/shop_catalog') {
+    require_once __DIR__ . '/controller/api/shop_catalog.php';
+    exit();
+}
 if ($request_uri === '/api/shop_reg') {
     require_once __DIR__ . '/controller/api/shop_reg.php';
     exit();

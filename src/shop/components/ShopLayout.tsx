@@ -61,6 +61,7 @@ export default function ShopLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [campusOpen, setCampusOpen] = useState(false);
+  const [mobSearchOpen, setMobSearchOpen] = useState(false);
   const [q, setQ] = useState('');
   const [collapsed, setCollapsed] = useState(true);
 
@@ -131,17 +132,19 @@ export default function ShopLayout() {
       </aside>
 
       <main id="shop-main" className="flex-1 min-w-0 flex flex-col pb-32 lg:pb-0">
-        {/* Top bar: campus + search */}
-        <header className="sticky top-0 z-30 bg-[#FFF5E1] border-b-4 border-black px-4 sm:px-8 py-3 flex items-center gap-3">
-          <Link to="/dash" aria-label="Back to Hub" className="lg:hidden bg-white border-4 border-black p-2 shadow-[3px_3px_0_0_#000] shrink-0"><ArrowLeft size={16} strokeWidth={3} /></Link>
+        {/* Top bar: campus + search (Desktop Only) */}
+        <header className="hidden lg:flex sticky top-0 z-30 bg-[#FFF5E1] border-b-4 border-black px-8 py-3 items-center gap-3">
           <button onClick={() => setCampusOpen(true)} className="flex items-center gap-2 bg-white border-4 border-black px-3 py-2 font-black uppercase text-xs shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 transition-all shrink-0">
             <MapPin size={16} className="text-red-500" /> {campusLabel || 'Select'}
           </button>
-          <form onSubmit={submitSearch} className="flex-1 flex items-stretch border-4 border-black bg-white shadow-[3px_3px_0_0_#000]">
+
+          <form onSubmit={submitSearch} className="flex-1 items-stretch border-4 border-black bg-white shadow-[3px_3px_0_0_#000] flex">
             <div className="px-3 flex items-center"><Search size={18} /></div>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search milk, maggi, notebook..." className="flex-1 min-w-0 py-2 font-bold outline-none bg-transparent" />
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products & stores..." className="flex-1 min-w-0 py-2 font-bold outline-none bg-transparent" />
+            <button type="submit" className="bg-[#3B82F6] text-white font-black uppercase tracking-widest text-xs px-4 border-l-4 border-black hover:bg-blue-600 transition-colors">Search</button>
           </form>
-          <Link to="/shop/cart" className="hidden lg:flex items-center gap-2 bg-[#3B82F6] text-white border-4 border-black px-4 py-2 font-black uppercase text-sm shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 transition-all shrink-0">
+
+          <Link to="/shop/cart" className="flex items-center gap-2 bg-[#3B82F6] text-white border-4 border-black px-4 py-2 font-black uppercase text-sm shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 transition-all shrink-0">
             <ShoppingCart size={18} /> {count > 0 ? `₹${subtotal}` : 'Cart'}
           </Link>
         </header>

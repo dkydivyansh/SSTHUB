@@ -1,23 +1,20 @@
-import { Link } from 'react-router-dom';
-import { Clock } from 'lucide-react';
-import { useMemo } from 'react';
-import { CATEGORIES, discountPct } from '../data/mock';
+import { Link, useNavigate } from 'react-router-dom';
+import { Clock, Search, ArrowLeft } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useCatalog } from '../hooks/useCatalog';
 import ProductCard from '../components/ProductCard';
 import type { Product, Store } from '../types';
+import { discountPct } from '../data/mock';
 
 export function StoreCard({ store }: { store: Store }) {
   return (
     <Link to={`/shop/store/${store.id}`} className="bg-white border-4 border-black shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[8px_8px_0_0_#000] transition-all flex flex-col">
-      <div className="h-24 border-b-4 border-black overflow-hidden"><img src={store.banner} alt="" className="w-full h-full object-cover" /></div>
-      <div className="p-3 flex gap-3 items-center">
-        <img src={store.logo} alt="" className="w-12 h-12 border-4 border-black -mt-8 bg-white" />
-        <div className="min-w-0">
-          <h3 className="font-black uppercase leading-tight truncate">{store.name}</h3>
-          <p className="text-xs font-bold flex items-center gap-1 text-gray-600"><Clock size={12} />{store.opens_at}–{store.closes_at}
-            <span className={`ml-1 px-1 border-2 border-black text-[10px] ${store.is_open ? 'bg-emerald-300' : 'bg-red-300'}`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
-          </p>
-        </div>
+      <div className="h-32 border-b-4 border-black overflow-hidden"><img src={store.banner} alt="" className="w-full h-full object-cover" /></div>
+      <div className="p-3">
+        <h3 className="font-black uppercase leading-tight truncate">{store.name}</h3>
+        <p className="text-xs font-bold flex items-center gap-1 text-gray-600 mt-1"><Clock size={12} />{store.opens_at}–{store.closes_at}
+          <span className={`ml-1 px-1 border-2 border-black text-[10px] ${store.is_open ? 'bg-emerald-300' : 'bg-red-300'}`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
+        </p>
       </div>
     </Link>
   );
@@ -40,13 +37,16 @@ function ProductRow({ items }: { items: Product[] }) {
 }
 
 export function CategoriesPage() {
+  const { categories, catalogLoading } = useCatalog();
+  if (catalogLoading) return <div className="p-8 text-center font-black uppercase">Loading...</div>;
+  
   return (
     <div>
       <SectionTitle>All categories</SectionTitle>
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-        {CATEGORIES.map(c => (
+        {categories.map(c => (
           <Link key={c.id} to={`/shop/category/${c.slug}`} className="group flex flex-col items-center gap-2 text-center">
-            <img src={c.image} alt={c.name} className="w-full aspect-square border-4 border-black shadow-[3px_3px_0_0_#000] group-hover:-translate-y-1 group-hover:shadow-[6px_6px_0_0_#000] transition-all object-cover" />
+            <img src={c.image} alt={c.name} className="w-full aspect-square border-4 border-black shadow-[3px_3px_0_0_#000] group-hover:-translate-y-1 group-hover:shadow-[6px_6px_0_0_#000] transition-all object-cover bg-white" />
             <span className="text-xs font-black uppercase leading-tight">{c.name}</span>
           </Link>
         ))}
@@ -56,30 +56,45 @@ export function CategoriesPage() {
 }
 
 export default function ShopHome() {
-  const { stores, products } = useCatalog();
+  const navigate = useNavigate();
+  const [q, setQ] = useState('');
+  const { stores, products, categories, catalogLoading } = useCatalog();
   const deals = useMemo(() => products.filter(p => p.discounted_price).sort((a, b) => (a.discounted_price! / a.price) - (b.discounted_price! / b.price)).slice(0, 10), [products]);
-  const featured = stores.flatMap(s => s.featured).map(sku => products.find(p => p.sku === sku)).filter(Boolean) as Product[];
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (q.trim()) navigate(`/shop/search?q=${encodeURIComponent(q.trim())}`);
+  };
+
   // Random picks: shuffled once per mount
   const random = useMemo(() => [...products].sort(() => Math.random() - 0.5).slice(0, 10), [products]);
   const bigOffers = useMemo(() => products.filter(p => discountPct(p) >= 20).slice(0, 4), [products]);
   const under50 = useMemo(() => products.filter(p => (p.discounted_price ?? p.price) <= 50).slice(0, 10), [products]);
-  const catSections = useMemo(() => CATEGORIES.map(c => ({ c, items: products.filter(p => p.categories.includes(c.id)).slice(0, 10) })).filter(s => s.items.length > 0).slice(0, 4), [products]);
+  const catSections = useMemo(() => categories.map(c => ({ c, items: products.filter(p => p.categories.includes(c.id)).slice(0, 10) })).filter(s => s.items.length > 0).slice(0, 4), [products, categories]);
+
+  if (catalogLoading) return <div className="min-h-screen bg-[#FFF5E1] flex items-center justify-center font-black uppercase text-xl animate-pulse">Loading catalog...</div>;
+  const featured = stores.flatMap(s => s.featured || []).map(sku => products.find(p => p.sku === sku)).filter(Boolean) as Product[];
 
   return (
     <div className="flex flex-col gap-10">
-      <section className="bg-[#3B82F6] text-white border-4 border-black shadow-[8px_8px_0_0_#000] p-6 sm:p-10 relative overflow-hidden">
-        <div className="absolute -right-6 -top-6 text-[8rem] sm:text-[12rem] opacity-30 select-none rotate-12">🛒</div>
-        <p className="font-black uppercase text-xs tracking-widest bg-black inline-block px-2 py-1 mb-3">SST Shop</p>
-        <h1 className="text-4xl sm:text-6xl font-black uppercase leading-none">Campus delivery,<br />in minutes.</h1>
-        <p className="font-bold mt-3 max-w-md">Snacks, groceries & stationery straight to your hostel. Free delivery over ₹199.</p>
-      </section>
+      <div className="lg:hidden flex flex-col gap-4">
+        <form onSubmit={submitSearch} className="flex items-stretch border-4 border-black bg-white shadow-[3px_3px_0_0_#000]">
+          <div className="px-3 flex items-center"><Search size={18} /></div>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products & stores..." className="flex-1 min-w-0 py-3 font-bold outline-none bg-transparent" />
+          <button type="submit" className="bg-[#3B82F6] text-white font-black uppercase tracking-widest text-xs px-4 border-l-4 border-black hover:bg-blue-600 transition-colors">Search</button>
+        </form>
+        <Link to="/dash" className="bg-white border-4 border-black px-4 py-3 shadow-[3px_3px_0_0_#000] font-black uppercase text-center text-sm hover:-translate-y-1 hover:shadow-[5px_5px_0_0_#000] transition-all flex items-center justify-center gap-2">
+          <ArrowLeft size={16} strokeWidth={3} /> Back to SST Hub
+        </Link>
+      </div>
+
 
       <section>
         <SectionTitle>Categories</SectionTitle>
         <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
-          {CATEGORIES.map(c => (
+          {categories.map(c => (
             <Link key={c.id} to={`/shop/category/${c.slug}`} className="group flex flex-col items-center gap-2 text-center">
-              <img src={c.image} alt={c.name} className="w-full aspect-square border-4 border-black shadow-[3px_3px_0_0_#000] group-hover:-translate-y-1 group-hover:shadow-[6px_6px_0_0_#000] transition-all object-cover" />
+              <img src={c.image || 'https://via.placeholder.com/150'} alt={c.name} className="w-full aspect-square border-4 border-black shadow-[3px_3px_0_0_#000] group-hover:-translate-y-1 group-hover:shadow-[6px_6px_0_0_#000] transition-all object-cover bg-white" />
               <span className="text-[11px] sm:text-xs font-black uppercase leading-tight">{c.name}</span>
             </Link>
           ))}

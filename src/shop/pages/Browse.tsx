@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { CATEGORIES, getCategory, effectivePrice, getStore } from '../data/mock';
+import { effectivePrice } from '../data/mock';
 import { useCatalog } from '../hooks/useCatalog';
 import ProductCard from '../components/ProductCard';
 import { SectionTitle, StoreCard } from './ShopHome';
@@ -37,8 +37,8 @@ const Back = () => <Link to="/shop" className="inline-flex items-center gap-1 fo
 
 export function CategoryPage() {
   const { slug } = useParams();
-  const cat = getCategory(slug || '');
-  const { products } = useCatalog();
+  const { categories, products } = useCatalog();
+  const cat = categories.find(x => x.slug === (slug || ''));
   const [sort, setSort] = useState<Sort>('relevance');
   if (!cat) return <Empty text="Category not found" />;
   const list = products.filter(p => p.categories.includes(cat.id)).sort(sortFn(sort));
@@ -47,7 +47,7 @@ export function CategoryPage() {
     <div>
       <Back />
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4">
-        {CATEGORIES.map(c => (
+        {categories.map(c => (
           <Link key={c.id} to={`/shop/category/${c.slug}`} className={`shrink-0 border-4 border-black px-3 py-1 font-black uppercase text-xs ${c.id === cat.id ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white'}`}>{c.name}</Link>
         ))}
       </div>
@@ -62,17 +62,39 @@ export function CategoryPage() {
 export function SearchPage() {
   const [params] = useSearchParams();
   const q = (params.get('q') || '').toLowerCase();
-  const { products } = useCatalog();
+  const { products, stores, categories } = useCatalog();
   const [sort, setSort] = useState<Sort>('relevance');
-  const list = products.filter(p =>
-    p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || Object.values(p.info).some(v => v.toLowerCase().includes(q))
-  ).sort(sortFn(sort));
+  
+  const qTerms = q.split(/\s+/).filter(Boolean);
+  
+  const matchedStores = stores.filter(s => {
+    const text = (s.name + ' ' + s.description).toLowerCase();
+    return qTerms.every(term => text.includes(term));
+  });
+  
+  const list = products.filter(p => {
+    const catNames = p.categories.map(cId => categories.find(c => c.id === cId)?.name || '').join(' ');
+    const storeName = stores.find(s => s.id === p.store_id)?.name || '';
+    const text = (p.title + ' ' + p.description + ' ' + Object.values(p.info).join(' ') + ' ' + catNames + ' ' + storeName).toLowerCase();
+    return qTerms.length === 0 || qTerms.every(term => text.includes(term));
+  }).sort(sortFn(sort));
+  
   return (
     <div>
       <Back />
       <SectionTitle>Results for “{params.get('q')}”</SectionTitle>
+      
       <SortBar sort={sort} setSort={setSort} count={list.length} />
-      {list.length ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">{list.map(p => <ProductCard key={p.sku} product={p} />)}</div> : <Empty text="No matches found" />}
+      {list.length ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">{list.map(p => <ProductCard key={p.sku} product={p} />)}</div> : (matchedStores.length === 0 && <Empty text="No matches found" />)}
+
+      {matchedStores.length > 0 && (
+        <div className="mb-8">
+          <SectionTitle>Stores</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {matchedStores.map(s => <StoreCard key={s.id} store={s} />)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -91,12 +113,12 @@ export function StoresPage() {
 
 export function StorePage() {
   const { id } = useParams();
-  const store = getStore(Number(id));
-  const { products } = useCatalog();
+  const { stores, products, categories } = useCatalog();
+  const store = stores.find(x => x.id === Number(id));
   const [cat, setCat] = useState<number | null>(null);
   if (!store) return <Empty text="Store not found" />;
   const all = products.filter(p => p.store_id === store.id);
-  const featured = store.featured.map(s => all.find(p => p.sku === s)).filter(Boolean);
+  const featured = (store.featured || []).map((s: string) => all.find(p => p.sku === s)).filter(Boolean);
   const list = all.filter(p => cat === null || p.categories.includes(cat));
 
   return (
@@ -105,13 +127,10 @@ export function StorePage() {
         <Back />
         <div className="border-4 border-black shadow-[6px_6px_0_0_#000] bg-white overflow-hidden">
           <img src={store.banner} alt="" className="w-full h-32 sm:h-44 object-cover border-b-4 border-black" />
-          <div className="p-4 flex gap-4 items-center">
-            <img src={store.logo} alt="" className="w-16 h-16 border-4 border-black" />
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black uppercase leading-none">{store.name}</h1>
-              <p className="font-bold text-sm text-gray-600">{store.description}</p>
-              <p className="text-xs font-black uppercase mt-1">{store.opens_at}–{store.closes_at} · {store.is_open ? '🟢 Open' : '🔴 Closed'}</p>
-            </div>
+          <div className="p-4">
+            <h1 className="text-2xl sm:text-3xl font-black uppercase leading-none mb-1">{store.name}</h1>
+            <p className="font-bold text-sm text-gray-600">{store.description}</p>
+            <p className="text-xs font-black uppercase mt-1">{store.opens_at}–{store.closes_at} · {store.is_open ? '🟢 Open' : '🔴 Closed'}</p>
           </div>
         </div>
       </div>
@@ -128,8 +147,8 @@ export function StorePage() {
         <div className="flex gap-2 overflow-x-auto pb-3 mb-3">
           <button onClick={() => setCat(null)} className={`shrink-0 border-4 border-black px-3 py-1 font-black uppercase text-xs ${cat === null ? 'bg-[#3B82F6] text-white' : 'bg-white'}`}>All</button>
           {store.categories.map(cid => {
-            const c = CATEGORIES.find(x => x.id === cid)!;
-            return <button key={cid} onClick={() => setCat(cid)} className={`shrink-0 border-4 border-black px-3 py-1 font-black uppercase text-xs ${cat === cid ? 'bg-[#3B82F6] text-white' : 'bg-white'}`}>{c.name}</button>;
+            const c = categories.find(x => x.id === cid)!;
+            return <button key={cid} onClick={() => setCat(cid)} className={`shrink-0 border-4 border-black px-3 py-1 font-black uppercase text-xs ${cat === cid ? 'bg-[#3B82F6] text-white' : 'bg-white'}`}>{c?.name}</button>;
           })}
         </div>
         {list.length ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">{list.map(p => <ProductCard key={p.sku} product={p} />)}</div> : <Empty text="No items" />}

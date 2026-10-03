@@ -42,6 +42,9 @@ import OfflineOverlay from './components/OfflineOverlay';
 const ShopApp = lazy(() => import('./shop/ShopApp'));
 const ShopRegister = lazy(() => import('./shop/pages/ShopRegister'));
 const ShopAdmin = lazy(() => import('./shop/pages/ShopAdmin'));
+const ShopManageLayout = lazy(() => import('./shop/pages/manage/ShopManageLayout'));
+const Products = lazy(() => import('./shop/pages/manage/Products'));
+const Settings = lazy(() => import('./shop/pages/manage/Settings'));
 
 function AppRoutes() {
   const location = useLocation();
@@ -110,7 +113,11 @@ function AppRoutes() {
           <Route path="homework/:homeworkId/submissions" element={<FacultyHomeworkSubmissionsPage />} />
         </Route>
 
-        <Route path="/shop-manage/admin" element={<Suspense fallback={null}><ShopAdmin /></Suspense>} />
+        <Route path="/shop-manage" element={<Suspense fallback={null}><ShopManageLayout /></Suspense>}>
+          <Route path="products" element={<Products />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="admin" element={<ShopAdmin />} />
+        </Route>
         <Route path="/shop/*" element={<Suspense fallback={null}><ShopApp /></Suspense>} />
         <Route path="/shop-reg" element={<Suspense fallback={null}><ShopRegister /></Suspense>} />
 
