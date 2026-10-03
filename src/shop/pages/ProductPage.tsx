@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { discountPct, effectivePrice } from '../data/mock';
 import { CAMPUSES } from '../types';
-import { useShop } from '../context/ShopContext';
+import { storeDeliveryFee, useShop } from '../context/ShopContext';
 import { QtyStepper } from '../components/ProductCard';
 import ProductCard from '../components/ProductCard';
 import { SectionTitle } from './ShopHome';
@@ -21,7 +21,11 @@ export default function ProductPage() {
   const pct = discountPct(p);
   const images = [p.featured_image, ...(Array.isArray(p.gallery) ? p.gallery : [])].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 10);
   const deliverable = !campus || p.available_to.includes(campus);
+  const isClosed = !store.is_open || !store.is_active;
   const related = products.filter(x => x.sku !== p.sku && x.categories.some(c => p.categories.includes(c)) && (!campus || x.available_to.includes(campus))).slice(0, 5);
+  const dInfo = campus ? storeDeliveryFee(store, campus, 0) : null;
+  const deliveryText = !dInfo || dInfo.feeBase <= 0 ? 'FREE'
+    : dInfo.freeAbove > 0 ? `₹${dInfo.feeBase} (free above ₹${dInfo.freeAbove})` : `₹${dInfo.feeBase}`;
 
   return (
     <div className="flex flex-col gap-10">
@@ -58,9 +62,10 @@ export default function ProductPage() {
 
             {p.quantity > 0 && p.quantity <= 10 && <p className="text-red-600 font-black uppercase text-sm">Only {p.quantity} left!</p>}
             {!deliverable && <p className="bg-yellow-200 border-4 border-black p-2 font-black uppercase text-xs">Not available on your campus. Available at: {p.available_to.map(c => CAMPUSES.find(x => x.id === c)?.label).join(', ')}</p>}
+            {isClosed && <p className="bg-red-200 border-4 border-black p-2 font-black uppercase text-xs">Store is currently closed.</p>}
 
             <div className="max-w-xs">
-              {deliverable ? <QtyStepper sku={p.sku} max={p.quantity} /> : <div className="p-3 border-4 border-black bg-gray-200 text-center font-black uppercase text-sm">Unavailable</div>}
+              {deliverable && !isClosed ? <QtyStepper sku={p.sku} max={p.quantity} /> : <div className="p-3 border-4 border-black bg-gray-200 text-center font-black uppercase text-sm">Unavailable</div>}
             </div>
 
             <div className="bg-white border-4 border-black shadow-[4px_4px_0_0_#000]">
@@ -70,6 +75,7 @@ export default function ProductPage() {
                   <div key={k} className="flex flex-col sm:flex-row sm:justify-between px-4 py-3 sm:py-2 text-sm gap-1 sm:gap-4"><dt className="font-black uppercase shrink-0">{k.replace(/_/g, ' ')}</dt><dd className="font-bold sm:text-right break-words min-w-0">{v as string}</dd></div>
                 ))}
                 <div className="flex flex-col sm:flex-row sm:justify-between px-4 py-3 sm:py-2 text-sm gap-1 sm:gap-4"><dt className="font-black uppercase shrink-0">Category</dt><dd className="font-bold sm:text-right break-words min-w-0">{p.categories.map(c => categories.find(x => x.id == c)?.name).filter(Boolean).join(', ')}</dd></div>
+                <div className="flex flex-col sm:flex-row sm:justify-between px-4 py-3 sm:py-2 text-sm gap-1 sm:gap-4"><dt className="font-black uppercase shrink-0">Delivery</dt><dd className="font-bold sm:text-right break-words min-w-0">{deliveryText}</dd></div>
               </dl>
             </div>
           </div>

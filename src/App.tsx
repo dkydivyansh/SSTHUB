@@ -45,6 +45,7 @@ const ShopAdmin = lazy(() => import('./shop/pages/ShopAdmin'));
 const ShopManageLayout = lazy(() => import('./shop/pages/manage/ShopManageLayout'));
 const Products = lazy(() => import('./shop/pages/manage/Products'));
 const Settings = lazy(() => import('./shop/pages/manage/Settings'));
+const Orders = lazy(() => import('./shop/pages/manage/Orders'));
 
 function AppRoutes() {
   const location = useLocation();
@@ -115,6 +116,9 @@ function AppRoutes() {
 
         <Route path="/shop-manage" element={<Suspense fallback={null}><ShopManageLayout /></Suspense>}>
           <Route path="products" element={<Products />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="active" element={<Orders />} />
+          <Route path="deliver" element={<Orders />} />
           <Route path="settings" element={<Settings />} />
           <Route path="admin" element={<ShopAdmin />} />
         </Route>

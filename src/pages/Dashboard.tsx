@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck, FileText, StickyNote, PartyPopper, ShoppingBag } from 'lucide-react';
+import { ArrowRight, ArrowLeft, X, Loader2, Calendar, Clock, BookOpen, ClipboardCheck, FileText, StickyNote, PartyPopper, ShoppingBag, Store } from 'lucide-react';
 import PostCard from '../components/PostCard';
 
 export default function Dashboard() {
@@ -138,6 +138,15 @@ export default function Dashboard() {
           >
             <ClipboardCheck className="text-white w-6 h-6 sm:w-8 sm:h-8 mb-1" />
             <span className="font-black uppercase tracking-widest text-center text-[10px] sm:text-xs">Manage Classes (Faculty)</span>
+          </Link>
+        )}
+        {(userData?.has_shop || userData?.type === 'admin') && (
+          <Link 
+            to="/shop-manage"
+            className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-emerald-400 text-black border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group lg:col-span-4"
+          >
+            <Store className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1" />
+            <span className="font-black uppercase tracking-widest text-center text-[10px] sm:text-xs">Manage Shop</span>
           </Link>
         )}
         <div className="col-span-2 sm:col-span-1 block">

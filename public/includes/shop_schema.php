@@ -1,4 +1,30 @@
 <?php
+/** Adds shop_stores.delivery_settings (JSON text) if missing. */
+function ensureDeliveryColumn(PDO $conn): void {
+    $has = $conn->query("SHOW COLUMNS FROM shop_stores LIKE 'delivery_settings'")->fetch();
+    if (!$has) $conn->exec("ALTER TABLE shop_stores ADD COLUMN delivery_settings TEXT NULL");
+}
+
+/** Normalise stored settings => ['UNI1'=>['fee'=>float,'free_above'=>float], ...] (0 = free / no threshold). */
+function parseDeliverySettings($raw): array {
+    $d = is_array($raw) ? $raw : (json_decode($raw ?? '', true) ?: []);
+    $out = [];
+    foreach (['UNI1','UNI2','OLD_CAMPUS','NEW_CAMPUS'] as $c) {
+        $out[$c] = [
+            'fee' => max(0, round((float)($d[$c]['fee'] ?? 0), 2)),
+            'free_above' => max(0, round((float)($d[$c]['free_above'] ?? 0), 2)),
+        ];
+    }
+    return $out;
+}
+
+function calcDeliveryFee(array $settings, string $campus, float $subtotal): float {
+    $s = $settings[$campus] ?? ['fee' => 0, 'free_above' => 0];
+    if ($s['fee'] <= 0) return 0.0;
+    if ($s['free_above'] > 0 && $subtotal >= $s['free_above']) return 0.0;
+    return (float)$s['fee'];
+}
+
 /**
  * Shop schema (MySQL). Idempotent: safe to call on every admin request.
  * Mirrors SHOP_PLAN.md §4, except logo/banner are MEDIUMTEXT so base64 data URIs fit.
@@ -22,7 +48,6 @@ function ensureShopSchema(PDO $conn): void {
         description TEXT,
         logo MEDIUMTEXT, banner MEDIUMTEXT,
         campus SET('UNI1','UNI2','OLD_CAMPUS','NEW_CAMPUS') NOT NULL,
-        opens_at TIME NULL, closes_at TIME NULL,
         is_open BOOLEAN DEFAULT TRUE, is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_store_status (is_active, is_open)
@@ -83,6 +108,40 @@ function ensureShopSchema(PDO $conn): void {
         INDEX idx_featured_order (store_id, sort_order),
         FOREIGN KEY (store_id) REFERENCES shop_stores(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES shop_products(id) ON DELETE CASCADE
+    )");
+
+    $conn->exec("CREATE TABLE IF NOT EXISTS shop_orders (
+        id VARCHAR(50) PRIMARY KEY,
+        user_id INT NOT NULL,
+        store_id INT NOT NULL,
+        status ENUM('placed', 'accepted', 'packed', 'out_for_delivery', 'delivered', 'cancelled', 'rejected') DEFAULT 'placed',
+        cancel_reason TEXT NULL,
+        address TEXT NOT NULL,
+        mobile VARCHAR(20) NOT NULL,
+        user_note TEXT NULL,
+        subtotal DECIMAL(10,2) NOT NULL,
+        delivery_fee DECIMAL(10,2) NOT NULL,
+        total DECIMAL(10,2) NOT NULL,
+        payment_method VARCHAR(20) NOT NULL DEFAULT 'COD',
+        placed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_order_user (user_id, placed_at DESC),
+        INDEX idx_order_store (store_id, status, placed_at DESC),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (store_id) REFERENCES shop_stores(id) ON DELETE CASCADE
+    )");
+
+    $conn->exec("CREATE TABLE IF NOT EXISTS shop_order_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id VARCHAR(50) NOT NULL,
+        product_id INT NULL,
+        sku VARCHAR(64) NOT NULL,
+        title VARCHAR(200) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        quantity INT UNSIGNED NOT NULL,
+        image MEDIUMTEXT,
+        INDEX idx_item_order (order_id),
+        FOREIGN KEY (order_id) REFERENCES shop_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES shop_products(id) ON DELETE SET NULL
     )");
 
     // Seed the starter categories (ids match the ones offered on /shop-reg)

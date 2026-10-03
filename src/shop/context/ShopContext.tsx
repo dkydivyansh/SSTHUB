@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Campus, Order, OrderStatus, Category, Store, Product } from '../types';
+import { CAMPUSES } from '../types';
 import { effectivePrice } from '../data/mock';
 
 const LS_CART = 'shop_cart_v1';
@@ -8,6 +9,15 @@ const LS_ORDERS = 'shop_orders_v1';
 
 export const FREE_DELIVERY_ABOVE = 199;
 export const DELIVERY_FEE = 15;
+
+export interface StoreCharge { storeId: number; subtotal: number; fee: number; feeBase: number; freeAbove: number; }
+
+export function storeDeliveryFee(store: Store | undefined, campus: Campus | null, subtotal: number) {
+  const cfg = campus ? store?.delivery?.[campus] : undefined;
+  const feeBase = cfg?.fee || 0, freeAbove = cfg?.free_above || 0;
+  const fee = feeBase <= 0 || (freeAbove > 0 && subtotal >= freeAbove) ? 0 : feeBase;
+  return { fee, feeBase, freeAbove };
+}
 
 interface ShopCtx {
   campus: Campus | null;
@@ -21,7 +31,8 @@ interface ShopCtx {
   deliveryFee: number;
   total: number;
   orders: Order[];
-  placeOrder: (address: string, payment: 'COD' | 'UPI') => Order[];
+  placeOrder: (address: string, mobile: string, note: string, payment: 'COD' | 'UPI') => Promise<void>;
+  storeCharges: StoreCharge[];
   categories: Category[];
   stores: Store[];
   products: Product[];
@@ -46,12 +57,37 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [catalog, setCatalog] = useState<{ categories: Category[], stores: Store[], products: Product[] }>({ categories: [], stores: [], products: [] });
   const [catalogLoading, setCatalogLoading] = useState(true);
 
+  const refreshOrders = useCallback(async () => {
+    try {
+      const r = await fetch('/api/shop_order?action=my_orders');
+      const d = await r.json();
+      if (d.status === 'success') {
+        setOrders(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(d.data)) return prev;
+          return d.data;
+        });
+      }
+    } catch (e) {
+      // Ignore network errors on polling
+    }
+  }, []);
+
   useEffect(() => {
     fetch('/api/shop_catalog')
       .then(r => r.json())
       .then(d => { if (d.status === 'success') setCatalog(d.data); })
       .finally(() => setCatalogLoading(false));
-  }, []);
+      
+    let isCancelled = false;
+    const poll = async () => {
+      if (isCancelled) return;
+      await refreshOrders();
+      if (!isCancelled) setTimeout(poll, 5000);
+    };
+    poll();
+    
+    return () => { isCancelled = true; };
+  }, [refreshOrders]);
 
   useEffect(() => localStorage.setItem(LS_CART, JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem(LS_ORDERS, JSON.stringify(orders)), [orders]);
@@ -83,45 +119,86 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     for (const [sku, qty] of Object.entries(cart)) {
       const p = catalog.products.find(x => x.sku === sku);
       if (!p) continue;
+      const s = catalog.stores.find(x => x.id === p.store_id);
+      if (campus && !p.available_to.includes(campus)) continue;
+      if (s && (!s.is_open || !s.is_active)) continue;
       count += qty;
       subtotal += effectivePrice(p as any) * qty;
     }
     return { count, subtotal };
-  }, [cart, catalog]);
+  }, [cart, catalog, campus]);
 
-  const deliveryFee = count === 0 || subtotal >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
-  const total = subtotal + deliveryFee;
-
-  /** Splits the cart into one order per store (see SHOP_PLAN.md §2.7). */
-  const placeOrder = (address: string, payment: 'COD' | 'UPI') => {
-    const byStore = new Map<number, Order['lines']>();
+  const storeCharges = useMemo<StoreCharge[]>(() => {
+    const m = new Map<number, number>();
     for (const [sku, qty] of Object.entries(cart)) {
       const p = catalog.products.find(x => x.sku === sku);
       if (!p) continue;
-      const lines = byStore.get(p.store_id) || [];
-      lines.push({ sku, title: p.title, price: effectivePrice(p as any), qty, image: p.featured_image });
-      byStore.set(p.store_id, lines);
+      const s = catalog.stores.find(x => x.id === p.store_id);
+      if (campus && !p.available_to.includes(campus)) continue;
+      if (s && (!s.is_open || !s.is_active)) continue;
+      m.set(p.store_id, (m.get(p.store_id) || 0) + effectivePrice(p as any) * qty);
     }
-    const created: Order[] = [];
-    byStore.forEach((lines, storeId) => {
-      const sub = lines.reduce((s, l) => s + l.price * l.qty, 0);
-      const fee = sub >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
-      created.push({
-        id: 'SH' + Date.now().toString(36).toUpperCase() + storeId,
-        placed_at: Date.now(),
-        store_id: storeId,
-        store_name: catalog.stores.find(s => s.id === storeId)?.name || 'Store',
-        lines, subtotal: sub, delivery_fee: fee, total: sub + fee,
-        payment_method: payment, address, status: 'placed' as OrderStatus,
-      });
+    return Array.from(m.entries()).map(([storeId, sub]) => ({
+      storeId, subtotal: sub, ...storeDeliveryFee(catalog.stores.find(x => x.id === storeId), campus, sub),
+    }));
+  }, [cart, catalog, campus]);
+
+  const deliveryFee = storeCharges.reduce((s, c) => s + c.fee, 0);
+  const total = subtotal + deliveryFee;
+
+  const placeOrder = async (address: string, mobile: string, note: string, payment: 'COD' | 'UPI') => {
+    const freshRes = await fetch('/api/shop_catalog');
+    const freshData = await freshRes.json();
+    if (freshData.status !== 'success') throw new Error('Could not verify stock. Try again.');
+    
+    setCatalog(freshData.data);
+    const freshCatalog = freshData.data;
+
+    const validCart: Record<string, number> = {};
+    for (const [sku, qty] of Object.entries(cart)) {
+      const p = freshCatalog.products.find((x: any) => x.sku === sku);
+      if (p && (!campus || p.available_to.includes(campus))) {
+        const s = freshCatalog.stores.find((x: any) => x.id === p.store_id);
+        if (s && s.is_open && s.is_active) {
+          if (p.quantity < qty) throw new Error(`Not enough stock for ${p.title}. Only ${p.quantity} left.`);
+          validCart[sku] = qty;
+        } else {
+          throw new Error(`Store ${s?.name || 'for an item'} is currently closed.`);
+        }
+      } else {
+        throw new Error(`Some items are no longer available at your location.`);
+      }
+    }
+
+    const campusLabel = CAMPUSES.find(c => c.id === campus)?.label || '';
+    const fullAddress = address.trim() ? `${address}, ${campusLabel}` : campusLabel;
+
+    const res = await fetch('/api/shop_order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cart: validCart, address: fullAddress, mobile, note, payment_method: payment, campus })
     });
-    setOrders(o => [...created, ...o]);
+    
+    const data = await res.json();
+    if (data.status !== 'success') {
+      throw new Error(data.message || 'Order failed');
+    }
+    
     setCart({});
-    return created;
+    
+    // Refresh orders
+    fetch('/api/shop_order?action=my_orders')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setOrders(d.data); });
+      
+    // Refresh catalog for updated stock
+    fetch('/api/shop_catalog')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setCatalog(d.data); });
   };
 
   return (
-    <Ctx.Provider value={{ campus, setCampus, cart, add, remove, clear, count, subtotal, deliveryFee, total, orders, placeOrder, ...catalog, catalogLoading }}>
+    <Ctx.Provider value={{ campus, setCampus, cart, add, remove, clear, count, subtotal, deliveryFee, total, orders, placeOrder, storeCharges, ...catalog, catalogLoading }}>
       {children}
     </Ctx.Provider>
   );

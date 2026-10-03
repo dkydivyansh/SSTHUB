@@ -24,19 +24,19 @@ export const STORES: Store[] = [
   {
     id: 1, name: 'Campus Mart', description: 'Daily groceries, snacks & essentials delivered to your hostel.',
     logo: emojiImg('🛒', '#3B82F6'), banner: emojiImg('🛒', '#93c5fd'), campus: ALL,
-    opens_at: '07:00', closes_at: '23:00', is_open: true, categories: [1, 2, 3, 4, 5, 8],
+    is_open: true, categories: [1, 2, 3, 4, 5, 8],
     featured: ['MILK-AM-500', 'MAGGI-4', 'LAYS-MAG-52', 'COKE-750'],
   },
   {
     id: 2, name: 'Night Owl Canteen', description: 'Late-night instant food and drinks for those all-nighters.',
     logo: emojiImg('🦉', '#a78bfa'), banner: emojiImg('🌙', '#ddd6fe'), campus: ['UNI1', 'UNI2', 'NEW_CAMPUS'],
-    opens_at: '18:00', closes_at: '03:00', is_open: true, categories: [3, 4, 5],
+    is_open: true, categories: [3, 4, 5],
     featured: ['CUPNOOD-1', 'REDBULL-250'],
   },
   {
     id: 3, name: 'Paper Trail', description: 'Stationery, lab records and exam-week survival kits.',
     logo: emojiImg('📚', '#f472b6'), banner: emojiImg('📝', '#fbcfe8'), campus: ['OLD_CAMPUS', 'NEW_CAMPUS'],
-    opens_at: '09:00', closes_at: '20:00', is_open: false, categories: [6, 7],
+    is_open: false, categories: [6, 7],
     featured: ['NOTE-A4-200', 'PEN-GEL-5'],
   },
 ];

@@ -2,8 +2,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Clock, Search, ArrowLeft } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCatalog } from '../hooks/useCatalog';
+import { useShop } from '../context/ShopContext';
 import ProductCard from '../components/ProductCard';
-import type { Product, Store } from '../types';
+import type { Product, Store, Campus } from '../types';
+import { CAMPUSES } from '../types';
 import { discountPct } from '../data/mock';
 
 export function StoreCard({ store }: { store: Store }) {
@@ -12,8 +14,8 @@ export function StoreCard({ store }: { store: Store }) {
       <div className="h-32 border-b-4 border-black overflow-hidden"><img src={store.banner} alt="" className="w-full h-full object-cover" /></div>
       <div className="p-3">
         <h3 className="font-black uppercase leading-tight truncate">{store.name}</h3>
-        <p className="text-xs font-bold flex items-center gap-1 text-gray-600 mt-1"><Clock size={12} />{store.opens_at}–{store.closes_at}
-          <span className={`ml-1 px-1 border-2 border-black text-[10px] ${store.is_open ? 'bg-emerald-300' : 'bg-red-300'}`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
+        <p className="text-xs font-bold flex items-center gap-1 text-gray-600 mt-1">
+          <span className={`px-1 border-2 border-black text-[10px] ${store.is_open ? 'bg-emerald-300' : 'bg-red-300'}`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
         </p>
       </div>
     </Link>
@@ -37,14 +39,16 @@ function ProductRow({ items }: { items: Product[] }) {
 }
 
 export function CategoriesPage() {
-  const { categories, catalogLoading } = useCatalog();
+  const { categories, products, catalogLoading } = useCatalog();
   if (catalogLoading) return <div className="p-8 text-center font-black uppercase">Loading...</div>;
+  
+  const activeCategories = categories.filter(c => products.some(p => p.categories.includes(c.id)));
   
   return (
     <div>
       <SectionTitle>All categories</SectionTitle>
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-        {categories.map(c => (
+        {activeCategories.map(c => (
           <Link key={c.id} to={`/shop/category/${c.slug}`} className="group flex flex-col items-center gap-2 text-center">
             <img src={c.image} alt={c.name} className="w-full aspect-square border-4 border-black shadow-[3px_3px_0_0_#000] group-hover:-translate-y-1 group-hover:shadow-[6px_6px_0_0_#000] transition-all object-cover bg-white" />
             <span className="text-xs font-black uppercase leading-tight">{c.name}</span>
@@ -58,7 +62,9 @@ export function CategoriesPage() {
 export default function ShopHome() {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
+  const { campus, setCampus } = useShop();
   const { stores, products, categories, catalogLoading } = useCatalog();
+  const activeCategories = useMemo(() => categories.filter(c => products.some(p => p.categories.includes(c.id))), [categories, products]);
   const deals = useMemo(() => products.filter(p => p.discounted_price).sort((a, b) => (a.discounted_price! / a.price) - (b.discounted_price! / b.price)).slice(0, 10), [products]);
 
   const submitSearch = (e: React.FormEvent) => {
@@ -78,6 +84,14 @@ export default function ShopHome() {
   return (
     <div className="flex flex-col gap-10">
       <div className="lg:hidden flex flex-col gap-4">
+        <select 
+          value={campus || ''} 
+          onChange={e => setCampus(e.target.value as Campus)}
+          className="border-4 border-black bg-white px-3 py-2 font-black uppercase text-sm shadow-[3px_3px_0_0_#000] focus:outline-none focus:bg-yellow-100"
+        >
+          <option value="" disabled>Select Delivery Location...</option>
+          {CAMPUSES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
         <form onSubmit={submitSearch} className="flex items-stretch border-4 border-black bg-white shadow-[3px_3px_0_0_#000]">
           <div className="px-3 flex items-center"><Search size={18} /></div>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products & stores..." className="flex-1 min-w-0 py-3 font-bold outline-none bg-transparent" />
@@ -92,7 +106,7 @@ export default function ShopHome() {
       <section>
         <SectionTitle>Categories</SectionTitle>
         <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
-          {categories.map(c => (
+          {activeCategories.map(c => (
             <Link key={c.id} to={`/shop/category/${c.slug}`} className="group flex flex-col items-center gap-2 text-center">
               <img src={c.image || 'https://via.placeholder.com/150'} alt={c.name} className="w-full aspect-square border-4 border-black shadow-[3px_3px_0_0_#000] group-hover:-translate-y-1 group-hover:shadow-[6px_6px_0_0_#000] transition-all object-cover bg-white" />
               <span className="text-[11px] sm:text-xs font-black uppercase leading-tight">{c.name}</span>

@@ -52,7 +52,11 @@ export default function ShopRegister() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = () => fetch(API).then(r => r.json()).then(d => {
-    if (d.status === 'success') { 
+    if (d.status === 'success') {
+      if (d.data.has_shop) {
+        navigate('/shop-manage');
+        return;
+      }
       setMe(d.data.me); 
       setApps(d.data.applications); 
       setHasShop(d.data.has_shop);

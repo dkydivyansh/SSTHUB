@@ -25,9 +25,9 @@ export interface Store {
   logo: string;
   banner: string;
   campus: Campus[];
-  opens_at: string;
-  closes_at: string;
+  delivery?: Record<Campus, { fee: number; free_above: number }>;
   is_open: boolean;
+  is_active: boolean;
   categories: number[];
   featured: string[]; // SKUs (shop_store_featured)
 }
@@ -58,7 +58,7 @@ export interface OrderLine {
   image: string;
 }
 
-export type OrderStatus = 'placed' | 'accepted' | 'packed' | 'out_for_delivery' | 'delivered' | 'cancelled';
+export type OrderStatus = 'placed' | 'accepted' | 'packed' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 
 export interface Order {
   id: string;
@@ -72,4 +72,5 @@ export interface Order {
   payment_method: 'COD' | 'UPI';
   address: string;
   status: OrderStatus;
+  cancel_reason?: string;
 }

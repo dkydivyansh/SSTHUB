@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/SessionManager.php';
+require_once __DIR__ . '/../../includes/shop_schema.php';
 
 function out($data, $code = 200) {
     http_response_code($code);
@@ -69,7 +70,7 @@ if ($sessionManager->validateSessionStatus($user_id, $session_id) === 'invalid_s
 $user_id = (int)$user_id;
 
 // Check if user is an owner or manager
-$chk = $conn->prepare("SELECT store_id, role, s.name, s.campus FROM shop_store_owners o JOIN shop_stores s ON s.id = o.store_id WHERE o.user_id = ? LIMIT 1");
+$chk = $conn->prepare("SELECT store_id, role, s.name, s.campus, s.is_open FROM shop_store_owners o JOIN shop_stores s ON s.id = o.store_id WHERE o.user_id = ? LIMIT 1");
 $chk->execute([$user_id]);
 $storeRole = $chk->fetch(PDO::FETCH_ASSOC);
 
@@ -88,27 +89,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 try {
     switch ($action) {
         case 'me':
-            out(['status' => 'success', 'data' => ['store_id' => $storeId, 'name' => $storeName, 'role' => $storeRole['role'], 'campus' => $storeCampus]]);
+            $counts = $conn->prepare("SELECT status, COUNT(*) as c FROM shop_orders WHERE store_id = ? GROUP BY status");
+            $counts->execute([$storeId]);
+            $stats = ['placed' => 0, 'active' => 0, 'deliver' => 0];
+            foreach ($counts->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                if ($row['status'] === 'placed') $stats['placed'] += $row['c'];
+                if ($row['status'] === 'accepted' || $row['status'] === 'packed') $stats['active'] += $row['c'];
+                if ($row['status'] === 'out_for_delivery') $stats['deliver'] += $row['c'];
+            }
+            out(['status' => 'success', 'data' => ['store_id' => $storeId, 'name' => $storeName, 'role' => $storeRole['role'], 'campus' => $storeCampus, 'is_open' => (bool)$storeRole['is_open'], 'stats' => $stats]]);
             
         case 'store_settings_get':
-            $stmt = $conn->prepare("SELECT opens_at, closes_at, is_open, campus FROM shop_stores WHERE id = ?");
+            ensureDeliveryColumn($conn);
+            $stmt = $conn->prepare("SELECT is_open, campus, delivery_settings FROM shop_stores WHERE id = ?");
             $stmt->execute([$storeId]);
             $settings = $stmt->fetch(PDO::FETCH_ASSOC);
             $settings['campus'] = explode(',', $settings['campus'] ?? '');
+            $settings['delivery'] = parseDeliverySettings($settings['delivery_settings']);
+            unset($settings['delivery_settings']);
             out(['status' => 'success', 'data' => $settings]);
 
         case 'store_settings_save':
             if ($storeRole['role'] !== 'owner') out(['status' => 'error', 'message' => 'Only owners can modify settings'], 403);
-            $opens_at = trim($body['opens_at'] ?? '');
-            $closes_at = trim($body['closes_at'] ?? '');
+            ensureDeliveryColumn($conn);
             $is_open = (int)!empty($body['is_open']);
             $campus = implode(',', $body['campus'] ?? []);
+            $delivery = json_encode(parseDeliverySettings($body['delivery'] ?? []));
             
-            if ($opens_at && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $opens_at)) $opens_at = null;
-            if ($closes_at && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $closes_at)) $closes_at = null;
-            
-            $conn->prepare("UPDATE shop_stores SET opens_at = ?, closes_at = ?, is_open = ?, campus = ? WHERE id = ?")->execute([
-                $opens_at ?: null, $closes_at ?: null, $is_open, $campus, $storeId
+            $conn->prepare("UPDATE shop_stores SET is_open = ?, campus = ?, delivery_settings = ? WHERE id = ?")->execute([
+                $is_open, $campus, $delivery, $storeId
             ]);
             out(['status' => 'success']);
             
@@ -195,6 +204,10 @@ try {
             
             if (!$title || $price <= 0) out(['status' => 'error', 'message' => 'Title and valid price required'], 422);
             if ($discount !== null && $discount > $price) out(['status' => 'error', 'message' => 'Discount price cannot be > original price'], 422);
+            if ($discount !== null && $discount < 0) out(['status' => 'error', 'message' => 'Discount price cannot be negative'], 422);
+            if ($qty < 0) out(['status' => 'error', 'message' => 'Quantity cannot be negative'], 422);
+            $campus = array_values(array_intersect((array)$campus, ['UNI1','UNI2','OLD_CAMPUS','NEW_CAMPUS']));
+            if (!is_array($gallery) || count($gallery) > 10) out(['status' => 'error', 'message' => 'Gallery can have at most 10 images'], 422);
             if (!$campus) out(['status' => 'error', 'message' => 'Select at least one campus'], 422);
             if (!$featured) out(['status' => 'error', 'message' => 'Featured image required'], 422);
             
@@ -234,6 +247,71 @@ try {
             
             $conn->commit();
             out(['status' => 'success', 'data' => ['id' => $id]]);
+            
+        case 'orders':
+            $stmt = $conn->prepare("SELECT * FROM shop_orders WHERE store_id = ? ORDER BY placed_at DESC");
+            $stmt->execute([$storeId]);
+            $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $orderIds = array_column($orders, 'id');
+            $items = [];
+            if (!empty($orderIds)) {
+                $in = implode(',', array_fill(0, count($orderIds), '?'));
+                $itemStmt = $conn->prepare("SELECT order_id, sku, title, price, quantity, image FROM shop_order_items WHERE order_id IN ($in)");
+                $itemStmt->execute($orderIds);
+                foreach ($itemStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $items[$row['order_id']][] = $row;
+                }
+            }
+            
+            foreach ($orders as &$o) {
+                $o['items'] = $items[$o['id']] ?? [];
+            }
+            out(['status' => 'success', 'data' => $orders]);
+
+        case 'update_order_status':
+            $orderId = trim($body['order_id'] ?? '');
+            $status = trim($body['status'] ?? '');
+            $reason = trim($body['cancel_reason'] ?? '');
+            $dontReaddStock = !empty($body['dont_readd_stock']);
+            
+            $valid = ['accepted', 'packed', 'out_for_delivery', 'delivered', 'cancelled', 'rejected'];
+            if (!in_array($status, $valid)) out(['status' => 'error', 'message' => 'Invalid status'], 400);
+            
+            $conn->beginTransaction();
+            $stmt = $conn->prepare("SELECT status FROM shop_orders WHERE id = ? AND store_id = ? FOR UPDATE");
+            $stmt->execute([$orderId, $storeId]);
+            $currentStatus = $stmt->fetchColumn();
+            
+            if (!$currentStatus) {
+                $conn->rollBack();
+                out(['status' => 'error', 'message' => 'Order not found'], 404);
+            }
+            if (in_array($currentStatus, ['delivered', 'cancelled', 'rejected'], true)) {
+                $conn->rollBack();
+                out(['status' => 'error', 'message' => 'Order is already ' . $currentStatus . ' and cannot be changed'], 400);
+            }
+            
+            $up = $conn->prepare("UPDATE shop_orders SET status = ?, cancel_reason = ? WHERE id = ?");
+            $up->execute([$status, in_array($status, ['cancelled', 'rejected']) ? $reason : null, $orderId]);
+            
+            if ($up->rowCount() > 0) {
+                if (!in_array($currentStatus, ['cancelled', 'rejected']) && in_array($status, ['cancelled', 'rejected'])) {
+                    if (!$dontReaddStock) {
+                        $items = $conn->prepare("SELECT sku, quantity FROM shop_order_items WHERE order_id = ?");
+                        $items->execute([$orderId]);
+                        $updStock = $conn->prepare("UPDATE shop_products SET quantity = quantity + ? WHERE sku = ? AND store_id = ?");
+                        foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $item) {
+                            $updStock->execute([$item['quantity'], $item['sku'], $storeId]);
+                        }
+                    }
+                }
+                $conn->commit();
+                out(['status' => 'success']);
+            }
+            $conn->rollBack();
+            out(['status' => 'error', 'message' => 'No change'], 400);
+            
     }
     out(['status' => 'error', 'message' => 'Unknown action'], 400);
 } catch (Throwable $e) {

@@ -4,7 +4,7 @@ import type { Product } from '../types';
 import { discountPct, effectivePrice } from '../data/mock';
 import { useShop } from '../context/ShopContext';
 
-export function QtyStepper({ sku, max, size = 'md' }: { sku: string; max: number; size?: 'sm' | 'md' }) {
+export function QtyStepper({ sku, max, size = 'md', disabled }: { sku: string; max: number; size?: 'sm' | 'md'; disabled?: boolean }) {
   const { cart, add, remove } = useShop();
   const qty = cart[sku] || 0;
   const pad = size === 'sm' ? 'px-3 py-1 text-sm' : 'px-6 py-2';
@@ -15,15 +15,16 @@ export function QtyStepper({ sku, max, size = 'md' }: { sku: string; max: number
   if (qty === 0) {
     return (
       <button
+        disabled={disabled}
         onClick={e => { e.preventDefault(); add(sku); }}
-        className={`${pad} w-full border-4 border-black bg-white font-black uppercase tracking-widest text-[#3B82F6] shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 hover:-translate-x-0.5 hover:shadow-[5px_5px_0_0_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all`}
+        className={`${pad} w-full border-4 border-black bg-white font-black uppercase tracking-widest text-[#3B82F6] shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 hover:-translate-x-0.5 hover:shadow-[5px_5px_0_0_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         Add
       </button>
     );
   }
   return (
-    <div className="flex w-full items-stretch border-4 border-black bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]">
+    <div className={`flex w-full items-stretch border-4 border-black bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000] ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <button aria-label="Decrease" onClick={e => { e.preventDefault(); remove(sku); }} className="px-2 flex-1 flex items-center justify-center hover:bg-blue-700"><Minus size={16} strokeWidth={4} /></button>
       <span className="px-3 font-black flex items-center bg-white text-black border-x-4 border-black min-w-10 justify-center">{qty}</span>
       <button aria-label="Increase" disabled={qty >= max} onClick={e => { e.preventDefault(); add(sku); }} className="px-2 flex-1 flex items-center justify-center hover:bg-blue-700 disabled:opacity-40"><Plus size={16} strokeWidth={4} /></button>
@@ -32,20 +33,34 @@ export function QtyStepper({ sku, max, size = 'md' }: { sku: string; max: number
 }
 
 export default function ProductCard({ product }: { product: Product }) {
+  const { stores, campus } = useShop();
+  const store = stores.find(s => s.id === product.store_id);
+  const isClosed = store && (!store.is_open || !store.is_active);
+  const isAvailable = !campus || product.available_to.includes(campus);
+  const showFaded = isClosed || !isAvailable;
   const pct = discountPct(product);
+  
   return (
-    <div className="group bg-white border-4 border-black p-3 flex flex-col gap-2 shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[8px_8px_0_0_#000] transition-all">
+    <div className={`group bg-white border-4 border-black p-3 flex flex-col gap-2 shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[8px_8px_0_0_#000] transition-all ${showFaded ? 'opacity-60 grayscale' : ''}`}>
       <Link to={`/shop/product/${product.sku}`} className="flex flex-col gap-2 flex-1">
         <div className="relative border-4 border-black aspect-square overflow-hidden bg-[#FFF5E1]">
           <img src={product.featured_image} alt={product.title} loading="lazy" className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-300 ${product.quantity <= 0 ? 'grayscale opacity-60' : ''}`} />
           {pct > 0 && (
             <span className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-black px-2 py-1 border-r-4 border-b-4 border-black uppercase">{pct}% off</span>
           )}
-          {product.quantity <= 0 && (
+          {product.quantity <= 0 ? (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <span className="bg-white text-red-600 px-2 py-1 border-4 border-black font-black uppercase text-xs rotate-[-12deg]">Sold Out</span>
             </div>
-          )}
+          ) : isClosed ? (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <span className="bg-white text-red-600 px-2 py-1 border-4 border-black font-black uppercase text-xs rotate-[-12deg]">Store Closed</span>
+            </div>
+          ) : !isAvailable ? (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <span className="bg-white text-red-600 px-2 py-1 border-4 border-black font-black uppercase text-[10px] text-center max-w-[80%]">Unavailable at location</span>
+            </div>
+          ) : null}
         </div>
         <div className="flex items-baseline gap-2">
           <span className="font-black text-lg">₹{effectivePrice(product)}</span>
@@ -57,7 +72,7 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.quantity > 0 && product.quantity <= 5 && <p className="text-[10px] font-black uppercase text-orange-600 bg-orange-100 border-2 border-orange-200 px-1">Only {product.quantity} left</p>}
         </div>
       </Link>
-      <QtyStepper sku={product.sku} max={product.quantity} size="sm" />
+      <QtyStepper sku={product.sku} max={product.quantity} size="sm" disabled={showFaded} />
     </div>
   );
 }

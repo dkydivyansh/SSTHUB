@@ -41,13 +41,15 @@ export function CategoryPage() {
   const cat = categories.find(x => x.slug === (slug || ''));
   const [sort, setSort] = useState<Sort>('relevance');
   if (!cat) return <Empty text="Category not found" />;
+  
+  const activeCategories = categories.filter(c => products.some(p => p.categories.includes(c.id)));
   const list = products.filter(p => p.categories.includes(cat.id)).sort(sortFn(sort));
 
   return (
     <div>
       <Back />
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4">
-        {categories.map(c => (
+        {activeCategories.map(c => (
           <Link key={c.id} to={`/shop/category/${c.slug}`} className={`shrink-0 border-4 border-black px-3 py-1 font-black uppercase text-xs ${c.id === cat.id ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white'}`}>{c.name}</Link>
         ))}
       </div>
@@ -130,7 +132,7 @@ export function StorePage() {
           <div className="p-4">
             <h1 className="text-2xl sm:text-3xl font-black uppercase leading-none mb-1">{store.name}</h1>
             <p className="font-bold text-sm text-gray-600">{store.description}</p>
-            <p className="text-xs font-black uppercase mt-1">{store.opens_at}–{store.closes_at} · {store.is_open ? '🟢 Open' : '🔴 Closed'}</p>
+            <p className="text-xs font-black uppercase mt-1">{store.is_open ? '🟢 Open' : '🔴 Closed'}</p>
           </div>
         </div>
       </div>

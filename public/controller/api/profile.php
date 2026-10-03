@@ -46,6 +46,10 @@ if (!$userData) {
 // Append session status so frontend knows if it needs to trigger a refresh
 $userData['session_status'] = $status;
 
+$chkShop = $conn->prepare("SELECT 1 FROM shop_store_owners WHERE user_id = ? LIMIT 1");
+$chkShop->execute([$user_id]);
+$userData['has_shop'] = (bool)$chkShop->fetchColumn();
+
 echo json_encode([
     'status' => 'success',
     'data' => $userData

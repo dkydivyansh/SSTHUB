@@ -13,10 +13,9 @@ export default function Settings() {
   const [success, setSuccess] = useState('');
   
   const [f, setF] = useState({
-    opens_at: '',
-    closes_at: '',
     is_open: true,
-    campus: [] as string[]
+    campus: [] as string[],
+    delivery: {} as Record<string, { fee: string; free_above: string }>
   });
 
   useEffect(() => {
@@ -24,11 +23,15 @@ export default function Settings() {
       .then(r => r.json())
       .then(d => {
         if (d.status === 'success') {
+          const dl: Record<string, { fee: string; free_above: string }> = {};
+          CAMPUSES.forEach(c => {
+            const x = d.data.delivery?.[c.id];
+            dl[c.id] = { fee: x?.fee ? String(x.fee) : '', free_above: x?.free_above ? String(x.free_above) : '' };
+          });
           setF({
-            opens_at: d.data.opens_at ? d.data.opens_at.slice(0, 5) : '',
-            closes_at: d.data.closes_at ? d.data.closes_at.slice(0, 5) : '',
             is_open: Boolean(d.data.is_open),
-            campus: d.data.campus || []
+            campus: d.data.campus || [],
+            delivery: dl
           });
         }
       })
@@ -44,7 +47,10 @@ export default function Settings() {
       const r = await fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'store_settings_save', ...f })
+        body: JSON.stringify({
+          action: 'store_settings_save', ...f,
+          delivery: Object.fromEntries(Object.entries(f.delivery).map(([k, v]) => [k, { fee: Number(v.fee) || 0, free_above: Number(v.free_above) || 0 }]))
+        })
       });
       const d = await r.json();
       if (d.status === 'success') {
@@ -88,16 +94,7 @@ export default function Settings() {
             </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <span className={label}>Opens At (Optional)</span>
-              <input type="time" className={field} value={f.opens_at} onChange={e => setF({...f, opens_at: e.target.value})} />
-            </div>
-            <div>
-              <span className={label}>Closes At (Optional)</span>
-              <input type="time" className={field} value={f.closes_at} onChange={e => setF({...f, closes_at: e.target.value})} />
-            </div>
-          </div>
+
 
           <div>
             <span className={label}>Serving Locations (Campuses) <span className="text-red-500">*</span></span>
@@ -114,6 +111,31 @@ export default function Settings() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          <div>
+            <span className={label}>Delivery Charges (per campus)</span>
+            <p className="font-bold text-gray-500 text-xs mb-3">Leave fee empty or 0 for free delivery. "Free above" waives the fee when the order from your store reaches that amount (0 = never waived).</p>
+            <div className="flex flex-col gap-3">
+              {CAMPUSES.filter(c => f.campus.includes(c.id)).map(c => {
+                const v = f.delivery[c.id] || { fee: '', free_above: '' };
+                const set = (k: 'fee' | 'free_above', val: string) => setF({ ...f, delivery: { ...f.delivery, [c.id]: { ...v, [k]: val } } });
+                return (
+                  <div key={c.id} className="border-4 border-black p-3 bg-[#FFF5E1]">
+                    <div className="font-black uppercase mb-2">{c.label}</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="font-black uppercase text-xs">Fee (₹)
+                        <input type="number" min="0" step="1" value={v.fee} onChange={e => set('fee', e.target.value)} placeholder="0 = Free" className={field + ' mt-1'} />
+                      </label>
+                      <label className="font-black uppercase text-xs">Free above (₹)
+                        <input type="number" min="0" step="1" value={v.free_above} onChange={e => set('free_above', e.target.value)} placeholder="Optional" className={field + ' mt-1'} />
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+              {f.campus.length === 0 && <p className="font-bold text-xs uppercase">Select a serving campus first.</p>}
             </div>
           </div>
 

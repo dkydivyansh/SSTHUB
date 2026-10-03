@@ -55,9 +55,27 @@ function CampusModal({ onClose }: { onClose?: () => void }) {
   );
 }
 
+function SearchModal({ onClose, q, setQ, submitSearch }: { onClose: () => void, q: string, setQ: (q: string) => void, submitSearch: (e: React.FormEvent) => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/60 flex items-start justify-center p-4 pt-20">
+      <div className="bg-[#FFF5E1] border-4 border-black shadow-[8px_8px_0_0_#000] w-full max-w-2xl p-4 flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-black uppercase">Search</h2>
+          <button onClick={onClose} aria-label="Close"><X size={24} strokeWidth={3} /></button>
+        </div>
+        <form onSubmit={(e) => { submitSearch(e); onClose(); }} className="flex items-stretch border-4 border-black bg-white shadow-[3px_3px_0_0_#000]">
+          <div className="px-3 flex items-center"><Search size={18} /></div>
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search products & stores..." className="flex-1 min-w-0 py-3 font-bold outline-none bg-transparent" />
+          <button type="submit" className="bg-[#3B82F6] text-white font-black uppercase tracking-widest text-xs px-4 border-l-4 border-black hover:bg-blue-600 transition-colors">Search</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ShopLayout() {
   const { user, loading } = useSession();
-  const { campus, count, subtotal } = useShop();
+  const { campus, count, subtotal, orders } = useShop();
   const location = useLocation();
   const navigate = useNavigate();
   const [campusOpen, setCampusOpen] = useState(false);
@@ -106,6 +124,7 @@ export default function ShopLayout() {
   return (
     <div className="min-h-screen bg-[#FFF5E1] flex font-sans text-black">
       {(!campus || campusOpen) && <CampusModal onClose={() => setCampusOpen(false)} />}
+      {mobSearchOpen && <SearchModal onClose={() => setMobSearchOpen(false)} q={q} setQ={setQ} submitSearch={submitSearch} />}
 
       {/* Desktop sidebar (same look as main app) */}
       <aside
@@ -120,34 +139,27 @@ export default function ShopLayout() {
               <span className="text-white px-2 border-2 border-black rotate-2 inline-block bg-[#3B82F6]">Shop</span>
             </div>
           </div>
+          
+          <button onClick={() => setCampusOpen(true)} className={`mt-8 flex items-center bg-white border-4 border-black font-black uppercase text-xs shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 transition-all overflow-hidden whitespace-nowrap ${collapsed ? 'p-2 justify-center' : 'px-3 py-2 justify-start gap-2'}`}>
+            <MapPin size={16} className="text-red-500 shrink-0" /> 
+            <span className={`overflow-hidden transition-all duration-300 ${collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[150px] opacity-100 ml-1'}`}>{campusLabel || 'Location'}</span>
+          </button>
         </div>
         <nav className="flex-1 flex flex-col gap-6 w-full">
           {sideItem('/shop', Home, 'Home')}
           {sideItem('/shop/categories', LayoutGrid, 'Category')}
           {sideItem('/shop/stores', StoreIcon, 'Stores')}
+          <button onClick={() => setMobSearchOpen(true)} className={`flex items-center font-black uppercase tracking-widest p-4 border-4 border-black transition-all duration-300 overflow-hidden whitespace-nowrap bg-white hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0_0_#000] ${collapsed ? 'justify-center' : 'justify-start'}`}>
+            <Search size={24} className="shrink-0" />
+            <span className={`overflow-hidden transition-all duration-300 ${collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[200px] opacity-100 ml-3'}`}>Search</span>
+          </button>
           {sideItem('/shop/cart', ShoppingCart, 'Cart', count)}
-          {sideItem('/shop/orders', Package, 'Orders')}
+          {sideItem('/shop/orders', Package, 'Orders', orders.filter(o => ['placed', 'accepted', 'packed', 'out_for_delivery'].includes(o.status)).length)}
           <div className="mt-auto">{sideItem('/dash', ArrowLeft, 'Back to Hub')}</div>
         </nav>
       </aside>
 
       <main id="shop-main" className="flex-1 min-w-0 flex flex-col pb-32 lg:pb-0">
-        {/* Top bar: campus + search (Desktop Only) */}
-        <header className="hidden lg:flex sticky top-0 z-30 bg-[#FFF5E1] border-b-4 border-black px-8 py-3 items-center gap-3">
-          <button onClick={() => setCampusOpen(true)} className="flex items-center gap-2 bg-white border-4 border-black px-3 py-2 font-black uppercase text-xs shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 transition-all shrink-0">
-            <MapPin size={16} className="text-red-500" /> {campusLabel || 'Select'}
-          </button>
-
-          <form onSubmit={submitSearch} className="flex-1 items-stretch border-4 border-black bg-white shadow-[3px_3px_0_0_#000] flex">
-            <div className="px-3 flex items-center"><Search size={18} /></div>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products & stores..." className="flex-1 min-w-0 py-2 font-bold outline-none bg-transparent" />
-            <button type="submit" className="bg-[#3B82F6] text-white font-black uppercase tracking-widest text-xs px-4 border-l-4 border-black hover:bg-blue-600 transition-colors">Search</button>
-          </form>
-
-          <Link to="/shop/cart" className="flex items-center gap-2 bg-[#3B82F6] text-white border-4 border-black px-4 py-2 font-black uppercase text-sm shadow-[3px_3px_0_0_#000] hover:-translate-y-0.5 transition-all shrink-0">
-            <ShoppingCart size={18} /> {count > 0 ? `₹${subtotal}` : 'Cart'}
-          </Link>
-        </header>
 
         <div className="p-4 sm:p-8 w-full max-w-7xl mx-auto flex-1">
           <Outlet />
@@ -168,7 +180,7 @@ export default function ShopLayout() {
         {mobItem('/shop/categories', LayoutGrid, 'Category')}
         {mobItem('/shop/stores', StoreIcon, 'Stores')}
         {mobItem('/shop/cart', ShoppingCart, 'Cart', count)}
-        {mobItem('/shop/orders', Package, 'Orders')}
+        {mobItem('/shop/orders', Package, 'Orders', orders.filter(o => ['placed', 'accepted', 'packed', 'out_for_delivery'].includes(o.status)).length)}
       </nav>
     </div>
   );
