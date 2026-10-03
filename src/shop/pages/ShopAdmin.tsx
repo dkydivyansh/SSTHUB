@@ -98,10 +98,10 @@ export default function ShopAdmin() {
     <div className="min-h-screen bg-[#FFF5E1] p-4 sm:p-8">
       <h1 className="text-3xl font-black uppercase mb-6 flex items-center gap-2"><Store /> Shop Admin</h1>
       
-      <div className="flex gap-2 mb-6">
-        <button onClick={() => setTab('apps')} className={`px-4 py-2 border-4 border-black font-black uppercase ${tab === 'apps' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Applications</button>
-        <button onClick={() => setTab('live')} className={`px-4 py-2 border-4 border-black font-black uppercase ${tab === 'live' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Live Stores</button>
-        <button onClick={() => setTab('cats')} className={`px-4 py-2 border-4 border-black font-black uppercase ${tab === 'cats' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Categories</button>
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button onClick={() => setTab('apps')} className={`px-3 py-2 sm:px-4 border-4 border-black font-black uppercase text-xs sm:text-base ${tab === 'apps' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Applications</button>
+        <button onClick={() => setTab('live')} className={`px-3 py-2 sm:px-4 border-4 border-black font-black uppercase text-xs sm:text-base ${tab === 'live' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Live Stores</button>
+        <button onClick={() => setTab('cats')} className={`px-3 py-2 sm:px-4 border-4 border-black font-black uppercase text-xs sm:text-base ${tab === 'cats' ? 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_#000]' : 'bg-white hover:-translate-y-1'}`}>Categories</button>
       </div>
 
       {tab === 'apps' && (

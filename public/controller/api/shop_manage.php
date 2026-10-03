@@ -220,13 +220,13 @@ try {
                 if (!$chk->fetchColumn()) out(['status' => 'error', 'message' => 'Product not found'], 404);
                 
                 $up = $conn->prepare("UPDATE shop_products SET title=?, description=?, price=?, discounted_price=?, quantity=?, unit=?, available_to=?, info=?, featured_image=?, gallery=?, is_active=? WHERE id=?");
-                $up->execute([$title, $desc, $price, $discount, $qty, $unit, implode(',', $campus), json_encode($info), $featured, json_encode(array_slice($gallery, 0, 9)), $active, $id]);
+                $up->execute([$title, $desc, $price, $discount, $qty, $unit, implode(',', $campus), json_encode($info), $featured, json_encode(array_slice($gallery, 0, 10)), $active, $id]);
             } else {
                 // Insert
                 $sku = strtoupper(uniqid("PRD{$storeId}-")); // Auto-generate SKU
                 try {
                     $ins = $conn->prepare("INSERT INTO shop_products (sku, store_id, title, description, price, discounted_price, quantity, unit, available_to, info, featured_image, gallery, is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
-                    $ins->execute([$sku, $storeId, $title, $desc, $price, $discount, $qty, $unit, implode(',', $campus), json_encode($info), $featured, json_encode(array_slice($gallery, 0, 9)), $active]);
+                    $ins->execute([$sku, $storeId, $title, $desc, $price, $discount, $qty, $unit, implode(',', $campus), json_encode($info), $featured, json_encode(array_slice($gallery, 0, 10)), $active]);
                     $id = (int)$conn->lastInsertId();
                 } catch (PDOException $e) {
                     if ($e->getCode() == 23000) { // Duplicate entry

@@ -66,65 +66,6 @@ export default function Dashboard() {
     fetchFeed(nextOffset);
   };
 
-
-  const removeInterest = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      interests: prev.interests.filter((_, i) => i !== index)
-    }));
-  };
-
-  const addPaper = () => {
-    if (paperTitle.trim() && formData.papers.length < 5) {
-      setFormData(prev => ({
-        ...prev,
-        papers: [...prev.papers, { title: paperTitle.trim(), link: paperLink.trim() }]
-      }));
-      setPaperTitle('');
-      setPaperLink('');
-    }
-  };
-
-  const removePaper = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      papers: prev.papers.filter((_, i) => i !== index)
-    }));
-  };
-
-  const nextStep = () => {
-    if (step < totalSteps) setStep(step + 1);
-  };
-
-  const prevStep = () => {
-    if (step > 1) setStep(step - 1);
-  };
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setLoading(true);
-    setError('');
-    
-    try {
-      const res = await fetch('/api/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const json = await res.json();
-      if (json.status === 'success') {
-        setShowModal(false);
-        window.location.reload();
-      } else {
-        setError(json.message || 'An error occurred during onboarding.');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="w-full h-full flex flex-col items-center min-h-[60vh] relative">
 
@@ -147,6 +88,15 @@ export default function Dashboard() {
           >
             <Store className="text-black w-6 h-6 sm:w-8 sm:h-8 mb-1" />
             <span className="font-black uppercase tracking-widest text-center text-[10px] sm:text-xs">Manage Shop</span>
+          </Link>
+        )}
+        {userData?.type === 'admin' && (
+          <Link 
+            to="/shop-manage/admin"
+            className="relative flex flex-col items-center justify-center gap-1 sm:gap-2 bg-[#F43F5E] text-white border-4 border-black p-3 sm:p-6 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group lg:col-span-4"
+          >
+            <Store className="text-white w-6 h-6 sm:w-8 sm:h-8 mb-1" />
+            <span className="font-black uppercase tracking-widest text-center text-[10px] sm:text-xs">Shop Admin</span>
           </Link>
         )}
         <div className="col-span-2 sm:col-span-1 block">

@@ -47,6 +47,7 @@ if ($method === 'POST') {
     if (!$body) out(['status' => 'error', 'message' => 'Invalid JSON'], 400);
 
     $cart = $body['cart'] ?? [];
+    if (!is_array($cart)) out(['status' => 'error', 'message' => 'Invalid cart'], 400);
     $address = trim($body['address'] ?? '');
     $mobile = trim($body['mobile'] ?? '');
     $note = trim($body['note'] ?? '');
@@ -118,6 +119,8 @@ if ($method === 'POST') {
             ];
         }
         
+        if (empty($byStore)) throw new Exception('Cart is empty');
+
         $createdOrders = [];
         
         // Insert orders
@@ -131,7 +134,7 @@ if ($method === 'POST') {
             $delivery_fee = calcDeliveryFee(parseDeliverySettings($ds->fetchColumn()), $campus, (float)$subtotal);
             $total = $subtotal + $delivery_fee;
             
-            $orderId = 'SH' . strtoupper(base_convert(microtime(true) * 10000, 10, 36)) . $storeId;
+            $orderId = 'SH' . strtoupper(base_convert((string)(int)(microtime(true) * 10000), 10, 36)) . $storeId . strtoupper(bin2hex(random_bytes(2)));
             
             $conn->prepare("INSERT INTO shop_orders (id, user_id, store_id, address, mobile, user_note, subtotal, delivery_fee, total, payment_method) VALUES (?,?,?,?,?,?,?,?,?,?)")
                 ->execute([$orderId, $user_id, $storeId, $address, $mobile, $note, $subtotal, $delivery_fee, $total, $payment_method]);
