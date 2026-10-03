@@ -307,6 +307,18 @@ try {
                     }
                 }
                 $conn->commit();
+                
+                // Send WhatsApp Notification
+                if (in_array($status, ['out_for_delivery', 'delivered'])) {
+                    $uStmt = $conn->prepare("SELECT mobile FROM shop_orders WHERE id = ? LIMIT 1");
+                    $uStmt->execute([$orderId]);
+                    $customerMobile = $uStmt->fetchColumn();
+                    if ($customerMobile) {
+                        require_once __DIR__ . '/../../includes/EvolutionAPI.php';
+                        EvolutionAPI::sendOrderMessage($status, $customerMobile, $orderId);
+                    }
+                }
+                
                 out(['status' => 'success']);
             }
             $conn->rollBack();

@@ -145,6 +145,15 @@ if ($method === 'POST') {
             }
             
             $createdOrders[] = $orderId;
+            
+            // Notify store owner
+            $owner = $conn->prepare("SELECT mobile FROM shop_store_owners WHERE store_id = ? LIMIT 1");
+            $owner->execute([$storeId]);
+            $ownerMobile = $owner->fetchColumn();
+            if ($ownerMobile) {
+                require_once __DIR__ . '/../../includes/EvolutionAPI.php';
+                EvolutionAPI::sendOrderMessage('new_order_owner', $ownerMobile, $orderId, $total);
+            }
         }
         
         $conn->commit();

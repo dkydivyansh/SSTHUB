@@ -280,6 +280,15 @@ try {
 
             $lite->prepare("UPDATE shop_applications SET status='approved', merged_store_id=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?")
                 ->execute([$storeId, $user_id, $id]);
+                
+            // Send WhatsApp Notification to Owners
+            require_once __DIR__ . '/../../includes/EvolutionAPI.php';
+            foreach (json_decode($app['owners'], true) ?: [] as $o) {
+                if (!empty($o['mobile'])) {
+                    EvolutionAPI::sendOrderMessage('shop_approved', $o['mobile'], $app['name']);
+                }
+            }
+
             out(['status' => 'success', 'data' => ['store_id' => $storeId]]);
         }
     }
