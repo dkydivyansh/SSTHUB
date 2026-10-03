@@ -1,0 +1,79 @@
+import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { discountPct, effectivePrice, getProduct, getStore, CATEGORIES, PRODUCTS } from '../data/mock';
+import { CAMPUSES } from '../types';
+import { useShop } from '../context/ShopContext';
+import { QtyStepper } from '../components/ProductCard';
+import ProductCard from '../components/ProductCard';
+import { SectionTitle } from './ShopHome';
+
+export default function ProductPage() {
+  const { sku } = useParams();
+  const p = getProduct(sku || '');
+  const { campus } = useShop();
+  const [img, setImg] = useState(0);
+
+  if (!p) return <div className="bg-white border-4 border-black p-10 text-center font-black uppercase">Product not found</div>;
+
+  const store = getStore(p.store_id)!;
+  const pct = discountPct(p);
+  const images = [p.featured_image, ...p.gallery.filter(g => g !== p.featured_image)].slice(0, 10);
+  const deliverable = !campus || p.available_to.includes(campus);
+  const related = PRODUCTS.filter(x => x.sku !== p.sku && x.categories.some(c => p.categories.includes(c)) && (!campus || x.available_to.includes(campus))).slice(0, 5);
+
+  return (
+    <div className="flex flex-col gap-10">
+      <div>
+        <Link to="/shop" className="inline-flex items-center gap-1 font-black uppercase text-sm mb-4 hover:underline"><ArrowLeft size={16} /> Shop</Link>
+        <div className="grid md:grid-cols-2 gap-8">
+          <div>
+            <div className="border-4 border-black shadow-[6px_6px_0_0_#000] bg-white aspect-square overflow-hidden">
+              <img src={images[img]} alt={p.title} className="w-full h-full object-cover" />
+            </div>
+            {images.length > 1 && (
+              <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
+                {images.map((g, i) => <button key={i} onClick={() => setImg(i)} className={`w-16 h-16 shrink-0 border-4 border-black ${i === img ? 'shadow-[3px_3px_0_0_#3B82F6]' : 'opacity-70'}`}><img src={g} alt="" className="w-full h-full object-cover" /></button>)}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <Link to={`/shop/store/${store.id}`} className="self-start bg-white border-4 border-black px-2 py-1 text-xs font-black uppercase hover:bg-[#3B82F6] hover:text-white">{store.name}</Link>
+            <h1 className="text-3xl sm:text-4xl font-black uppercase leading-tight">{p.title}</h1>
+            <p className="font-bold uppercase text-gray-500">{p.unit} · SKU {p.sku}</p>
+            <div className="flex items-baseline gap-3">
+              <span className="text-4xl font-black">₹{effectivePrice(p)}</span>
+              {pct > 0 && <><span className="line-through text-gray-500 font-bold text-lg">₹{p.price}</span><span className="bg-red-500 text-white border-4 border-black px-2 font-black text-sm">{pct}% OFF</span></>}
+            </div>
+            <p className="font-medium">{p.description}</p>
+
+            {p.quantity > 0 && p.quantity <= 10 && <p className="text-red-600 font-black uppercase text-sm">Only {p.quantity} left!</p>}
+            {!deliverable && <p className="bg-yellow-200 border-4 border-black p-2 font-black uppercase text-xs">Not available on your campus. Available at: {p.available_to.map(c => CAMPUSES.find(x => x.id === c)?.label).join(', ')}</p>}
+
+            <div className="max-w-xs">
+              {deliverable ? <QtyStepper sku={p.sku} max={p.quantity} /> : <div className="p-3 border-4 border-black bg-gray-200 text-center font-black uppercase text-sm">Unavailable</div>}
+            </div>
+
+            <div className="bg-white border-4 border-black shadow-[4px_4px_0_0_#000]">
+              <h2 className="font-black uppercase px-4 py-2 border-b-4 border-black bg-[#FFF5E1]">Product info</h2>
+              <dl className="divide-y-2 divide-black">
+                {Object.entries(p.info).map(([k, v]) => (
+                  <div key={k} className="flex justify-between px-4 py-2 text-sm"><dt className="font-black uppercase">{k.replace(/_/g, ' ')}</dt><dd className="font-bold">{v}</dd></div>
+                ))}
+                <div className="flex justify-between px-4 py-2 text-sm"><dt className="font-black uppercase">Category</dt><dd className="font-bold">{p.categories.map(c => CATEGORIES.find(x => x.id === c)?.name).join(', ')}</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {related.length > 0 && (
+        <section>
+          <SectionTitle>You may also like</SectionTitle>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">{related.map(r => <ProductCard key={r.sku} product={r} />)}</div>
+        </section>
+      )}
+    </div>
+  );
+}

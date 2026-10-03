@@ -46,6 +46,14 @@ if ($request_uri === '/auth/callback') {
     require_once __DIR__ . '/controller/auth/callback.php';
     exit();
 }
+if ($request_uri === '/api/shop_admin') {
+    require_once __DIR__ . '/controller/api/shop_admin.php';
+    exit();
+}
+if ($request_uri === '/api/shop_reg') {
+    require_once __DIR__ . '/controller/api/shop_reg.php';
+    exit();
+}
 if ($request_uri === '/api/social_discover') {
     require_once __DIR__ . '/controller/api/social_discover.php';
     exit();

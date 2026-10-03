@@ -174,9 +174,9 @@ $sessionManager = new SessionManager($conn);
 $sessionData = $sessionManager->createSession($user_id, ['user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown']);
 
 // Set HTTP-only Cookies
-setcookie('session_id', $sessionData['session_id'], time() + (24 * 60 * 60), '/', '', false, true);
-setcookie('refresh_token', $sessionData['refresh_token'], time() + (7 * 24 * 60 * 60), '/', '', false, true);
-setcookie('user_id', $user_id, time() + (7 * 24 * 60 * 60), '/', '', false, true);
+setcookie('session_id', $sessionData['session_id'], time() + (30 * 24 * 60 * 60), '/', '', false, true);
+setcookie('refresh_token', $sessionData['refresh_token'], time() + (365 * 24 * 60 * 60), '/', '', false, true);
+setcookie('user_id', $user_id, time() + (365 * 24 * 60 * 60), '/', '', false, true);
 
 // Redirect to dashboard
 header('Location: /dash');

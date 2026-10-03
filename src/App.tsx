@@ -4,7 +4,7 @@
  */
 
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -37,6 +37,11 @@ import NotFound from './pages/NotFound';
 import CodeOfConduct from './pages/CodeOfConduct';
 import Onboarding from './pages/Onboarding';
 import OfflineOverlay from './components/OfflineOverlay';
+
+// Separate /shop module (only session is shared with the main app)
+const ShopApp = lazy(() => import('./shop/ShopApp'));
+const ShopRegister = lazy(() => import('./shop/pages/ShopRegister'));
+const ShopAdmin = lazy(() => import('./shop/pages/ShopAdmin'));
 
 function AppRoutes() {
   const location = useLocation();
@@ -104,6 +109,10 @@ function AppRoutes() {
           <Route path="homework/:homeworkId/edit" element={<HomeworkCreatePage />} />
           <Route path="homework/:homeworkId/submissions" element={<FacultyHomeworkSubmissionsPage />} />
         </Route>
+
+        <Route path="/shop-manage/admin" element={<Suspense fallback={null}><ShopAdmin /></Suspense>} />
+        <Route path="/shop/*" element={<Suspense fallback={null}><ShopApp /></Suspense>} />
+        <Route path="/shop-reg" element={<Suspense fallback={null}><ShopRegister /></Suspense>} />
 
         <Route path="/logout" element={<Logout />} />
         

@@ -66,8 +66,8 @@ switch ($action) {
         }
         $result = $sessionManager->refreshSession($user_id, $session_id, $refresh_token);
         if ($result) {
-            setcookie('session_id', $result['session_id'], time() + (24 * 60 * 60), '/', '', false, true);
-            setcookie('refresh_token', $result['refresh_token'], time() + (7 * 24 * 60 * 60), '/', '', false, true);
+            setcookie('session_id', $result['session_id'], time() + (30 * 24 * 60 * 60), '/', '', false, true);
+            setcookie('refresh_token', $result['refresh_token'], time() + (365 * 24 * 60 * 60), '/', '', false, true);
             echo json_encode(['status' => 'success', 'data' => $result]);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'invalid_session']);
